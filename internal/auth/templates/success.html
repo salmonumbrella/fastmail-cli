@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Complete - Fastmail CLI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #09090b;
+            --bg-elevated: #18181b;
+            --bg-card: #1c1c1f;
+            --bg-hover: #27272a;
+            --bg-input: #0f0f11;
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #52525b;
+            --accent: #f59e0b;
+            --accent-hover: #fbbf24;
+            --accent-glow: rgba(245, 158, 11, 0.15);
+            --accent-subtle: rgba(245, 158, 11, 0.08);
+            --border: rgba(255, 255, 255, 0.06);
+            --border-active: rgba(255, 255, 255, 0.12);
+            --success: #22c55e;
+            --success-glow: rgba(34, 197, 94, 0.12);
+            --fastmail-blue: #0067b9;
+            --fastmail-light: #69b3e7;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --radius-full: 9999px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            opacity: 0;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        /* Ambient grid with success tint */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% -20%, var(--success-glow), transparent),
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 60px 60px, 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 560px;
+            margin: 0 auto;
+            padding: 48px 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Success Header */
+        .success-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            position: relative;
+            opacity: 0;
+            animation: iconReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+        }
+
+        @keyframes iconReveal {
+            from {
+                opacity: 0;
+                transform: scale(0.8) translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .success-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .success-badge {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            width: 28px;
+            height: 28px;
+            background: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 0 3px var(--bg-base);
+            opacity: 0;
+            transform: scale(0);
+            animation: badgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s forwards;
+        }
+
+        @keyframes badgePop {
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .success-badge svg {
+            width: 16px;
+            height: 16px;
+            color: white;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            opacity: 0;
+            animation: contentReveal 0.5s ease-out 0.25s forwards;
+        }
+
+        @keyframes contentReveal {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .account-info {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            opacity: 0;
+            animation: contentReveal 0.5s ease-out 0.35s forwards;
+        }
+
+        .account-info strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .primary-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            background: var(--accent-glow);
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            margin-bottom: 16px;
+            opacity: 0;
+            animation: contentReveal 0.5s ease-out 0.4s forwards;
+        }
+
+        .primary-badge svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .terminal-notice {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            opacity: 0;
+            animation: contentReveal 0.5s ease-out 0.45s forwards;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .terminal-notice .prompt {
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: var(--accent);
+            margin-left: 2px;
+            vertical-align: middle;
+            animation: blink 1.2s step-end infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            overflow: hidden;
+            opacity: 0;
+            animation: contentReveal 0.5s ease-out forwards;
+        }
+
+        .card:nth-child(1) { animation-delay: 0.5s; }
+        .card:nth-child(2) { animation-delay: 0.6s; }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .card-body {
+            padding: 16px 20px;
+        }
+
+        /* Environment Variable Section */
+        .env-section {
+            animation-delay: 0.5s;
+        }
+
+        .env-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .env-code-block {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+
+        .env-code-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-elevated);
+        }
+
+        .env-code-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .env-code-label svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .copy-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-active);
+            color: var(--text-primary);
+        }
+
+        .copy-btn.copied {
+            background: var(--success-glow);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: var(--success);
+        }
+
+        .copy-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .env-code-content {
+            padding: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-primary);
+            overflow-x: auto;
+        }
+
+        .env-code-content .comment {
+            color: var(--text-muted);
+        }
+
+        .env-code-content .key {
+            color: var(--accent);
+        }
+
+        .env-code-content .value {
+            color: var(--success);
+        }
+
+        .env-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .env-hint svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* Quick Start Commands */
+        .commands-section {
+            animation-delay: 0.6s;
+        }
+
+        .command-item {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .command-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .command-item:hover {
+            border-color: var(--border-active);
+            background: var(--bg-hover);
+        }
+
+        .command-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .command-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-primary);
+            word-break: break-all;
+        }
+
+        .command-code .hl {
+            color: var(--accent);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding-top: 24px;
+            color: var(--text-muted);
+            font-size: 12px;
+            opacity: 0;
+            animation: contentReveal 0.5s ease-out 0.7s forwards;
+        }
+
+        .footer a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .footer a:hover {
+            color: var(--accent);
+        }
+
+        .footer svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 32px 16px;
+            }
+
+            .card-body {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="success-header">
+            <div class="success-icon">
+                <!-- Fastmail logo -->
+                <svg viewBox="0 0 255 255" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M184.85 81a80.39 80.39 0 0 1-133.77 89.2l-17.81 11.86A101.78 101.78 0 0 0 202.65 69.15z" fill="#69b3e7"></path>
+                    <path d="M37.33 125.23A80.39 80.39 0 0 1 184.85 81l17.8-11.86A101.78 101.78 0 1 0 33.27 182.06l17.81-11.86a80 80 0 0 1-13.75-44.97z" fill="#0067b9"></path>
+                    <path d="M69.33 157.49h93.37a3.41 3.41 0 0 0 3.41-3.41V93z" fill="#fff"></path>
+                    <path d="M117.72 125.23L69.33 93v64.52z" fill="#ffc107"></path>
+                </svg>
+                <div class="success-badge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </div>
+            </div>
+
+            <h1>You're all set!</h1>
+            <p class="account-info">Connected as <strong>{{.Email}}</strong></p>
+            <span class="primary-badge">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                Primary Account
+            </span>
+            <p class="terminal-notice">
+                <span class="prompt">&gt;_</span> Return to your terminal to continue<span class="cursor"></span>
+            </p>
+        </header>
+
+        <div class="card env-section">
+            <div class="card-header">
+                <span class="card-title">Environment Setup</span>
+            </div>
+            <div class="card-body">
+                <p class="env-description">
+                    Add this to your shell profile to set your default Fastmail account:
+                </p>
+                <div class="env-code-block">
+                    <div class="env-code-header">
+                        <span class="env-code-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 17l6-6-6-6"/>
+                                <line x1="12" y1="19" x2="20" y2="19"/>
+                            </svg>
+                            ~/.zshrc or ~/.bashrc
+                        </span>
+                        <button id="copyBtn" class="copy-btn" onclick="copyEnvVar()">
+                            <svg id="copyIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                            </svg>
+                            <span id="copyText">Copy</span>
+                        </button>
+                    </div>
+                    <div class="env-code-content">
+                        <span class="comment"># Fastmail CLI default account</span><br>
+                        <span class="key">export</span> <span class="key">FASTMAIL_ACCOUNT</span>=<span class="value">"{{.Email}}"</span>
+                    </div>
+                </div>
+                <p class="env-hint">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 16v-4"/>
+                        <path d="M12 8h.01"/>
+                    </svg>
+                    This is optional. You can also use <code style="color: var(--accent);">--account</code> flag to specify the account per command.
+                </p>
+            </div>
+        </div>
+
+        <div class="card commands-section">
+            <div class="card-header">
+                <span class="card-title">Quick Start</span>
+            </div>
+            <div class="card-body">
+                <div class="command-item">
+                    <div class="command-label">List recent emails</div>
+                    <div class="command-code">fastmail email list <span class="hl">--limit 10</span></div>
+                </div>
+
+                <div class="command-item">
+                    <div class="command-label">View your masked emails</div>
+                    <div class="command-code">fastmail masked list</div>
+                </div>
+
+                <div class="command-item">
+                    <div class="command-label">Create a new alias</div>
+                    <div class="command-code">fastmail masked create <span class="hl">example.com</span></div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <a href="https://github.com/salmonumbrella/fastmail-cli" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                View on GitHub
+            </a>
+        </footer>
+    </div>
+
+    <script>
+        const email = '{{.Email}}';
+
+        function copyEnvVar() {
+            const envLine = `export FASTMAIL_ACCOUNT="${email}"`;
+            navigator.clipboard.writeText(envLine).then(() => {
+                const btn = document.getElementById('copyBtn');
+                const text = document.getElementById('copyText');
+                const icon = document.getElementById('copyIcon');
+
+                btn.classList.add('copied');
+                text.textContent = 'Copied!';
+                icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    text.textContent = 'Copy';
+                    icon.innerHTML = '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
+                }, 2000);
+            });
+        }
+
+        // Signal to server that page has loaded, then it can shut down
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                fetch('/complete').catch(function() {
+                    // Server may have already shut down, that's fine
+                });
+            }, 500);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Build artifacts
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# IDE/Editor
+.cursor/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Conversation history
+.specstory/
+
+# Reference material
+.gitingest/
+
+# Planning/research docs (not for public repo)
+docs/plans/
+COMPARISON.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup/temp files
+*.todo
+*.bak
+*.orig

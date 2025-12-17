@@ -1,0 +1,104 @@
+package jmap
+
+import (
+	"context"
+	"io"
+)
+
+// EmailService defines the interface for email operations in the JMAP client.
+// This interface enables unit testing without network calls by allowing mock implementations.
+type EmailService interface {
+	// GetEmails retrieves emails from a mailbox with optional filtering and limit
+	GetEmails(ctx context.Context, mailboxID string, limit int) ([]Email, error)
+
+	// SearchEmails searches for emails matching a query string
+	SearchEmails(ctx context.Context, query string, limit int) ([]Email, error)
+
+	// GetEmailByID retrieves a specific email by ID with full details
+	GetEmailByID(ctx context.Context, id string) (*Email, error)
+
+	// SendEmail sends an email with the provided options
+	SendEmail(ctx context.Context, opts SendEmailOpts) (string, error)
+
+	// DeleteEmail moves an email to trash
+	DeleteEmail(ctx context.Context, id string) error
+
+	// MoveEmail moves an email to a target mailbox
+	MoveEmail(ctx context.Context, id, targetMailboxID string) error
+
+	// MarkEmailRead marks an email as read or unread
+	MarkEmailRead(ctx context.Context, id string, read bool) error
+
+	// GetThread retrieves all emails in a thread
+	GetThread(ctx context.Context, threadID string) ([]Email, error)
+
+	// GetEmailAttachments retrieves attachments for an email
+	GetEmailAttachments(ctx context.Context, id string) ([]Attachment, error)
+
+	// GetMailboxes retrieves all mailboxes for the account
+	GetMailboxes(ctx context.Context) ([]Mailbox, error)
+
+	// DownloadBlob downloads a blob (attachment) by ID and returns a ReadCloser
+	DownloadBlob(ctx context.Context, blobID string) (io.ReadCloser, error)
+
+	// UploadBlob uploads binary data and returns the blob ID
+	UploadBlob(ctx context.Context, reader io.Reader, contentType string) (*UploadBlobResult, error)
+
+	// GetIdentities retrieves sending identities for the account
+	GetIdentities(ctx context.Context) ([]Identity, error)
+
+	// GetMailboxByName finds a mailbox by name (case-insensitive)
+	GetMailboxByName(ctx context.Context, name string) (*Mailbox, error)
+
+	// ResolveMailboxID takes either a mailbox ID or name and returns the ID
+	ResolveMailboxID(ctx context.Context, idOrName string) (string, error)
+
+	// CreateMailbox creates a new mailbox (folder)
+	CreateMailbox(ctx context.Context, opts CreateMailboxOpts) (*Mailbox, error)
+
+	// DeleteMailbox deletes a mailbox by ID
+	DeleteMailbox(ctx context.Context, id string) error
+
+	// RenameMailbox renames a mailbox
+	RenameMailbox(ctx context.Context, id, newName string) error
+
+	// SearchEmailsWithSnippets searches with highlighted context
+	SearchEmailsWithSnippets(ctx context.Context, query string, limit int) ([]Email, []SearchSnippet, error)
+
+	// ImportEmail imports a raw RFC 5322 message
+	ImportEmail(ctx context.Context, opts ImportEmailOpts) (string, error)
+}
+
+// MaskedEmailService defines the interface for masked email (alias) operations.
+// This interface enables unit testing without network calls by allowing mock implementations.
+type MaskedEmailService interface {
+	// GetMaskedEmails retrieves all masked email aliases
+	GetMaskedEmails(ctx context.Context) ([]MaskedEmail, error)
+
+	// GetMaskedEmailByEmail retrieves a specific masked email by its address
+	GetMaskedEmailByEmail(ctx context.Context, email string) (*MaskedEmail, error)
+
+	// GetMaskedEmailsForDomain retrieves masked emails for a specific domain
+	GetMaskedEmailsForDomain(ctx context.Context, domain string) ([]MaskedEmail, error)
+
+	// CreateMaskedEmail creates a new masked email alias
+	CreateMaskedEmail(ctx context.Context, domain, description string) (*MaskedEmail, error)
+
+	// UpdateMaskedEmailState updates the state of a masked email (enabled/disabled/deleted)
+	UpdateMaskedEmailState(ctx context.Context, id string, state MaskedEmailState) error
+
+	// UpdateMaskedEmailDescription updates the description of a masked email
+	UpdateMaskedEmailDescription(ctx context.Context, id, description string) error
+}
+
+// VacationService defines the interface for vacation response operations.
+type VacationService interface {
+	// GetVacationResponse retrieves the current vacation/auto-reply settings
+	GetVacationResponse(ctx context.Context) (*VacationResponse, error)
+
+	// SetVacationResponse updates the vacation/auto-reply settings
+	SetVacationResponse(ctx context.Context, opts SetVacationResponseOpts) error
+
+	// DisableVacationResponse turns off the vacation responder
+	DisableVacationResponse(ctx context.Context) error
+}
