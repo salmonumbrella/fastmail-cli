@@ -85,9 +85,7 @@ With a domain, lists only aliases for that domain.`,
 			})
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
-					"aliases": aliases,
-				})
+				return outfmt.PrintJSON(aliases)
 			}
 
 			if len(aliases) == 0 {
