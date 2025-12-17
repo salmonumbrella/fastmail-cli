@@ -115,7 +115,7 @@ func newAuthListCmd() *cobra.Command {
 
 			if len(tokens) == 0 {
 				if isJSON(cmd.Context()) {
-					return outfmt.WriteJSON(os.Stdout, map[string]any{"accounts": []string{}})
+					return outfmt.WriteJSON(os.Stdout, []string{})
 				}
 				fmt.Fprintln(os.Stderr, "No accounts configured")
 				return nil
@@ -142,7 +142,7 @@ func newAuthListCmd() *cobra.Command {
 						CreatedAt: createdAt,
 					}
 				}
-				return outfmt.WriteJSON(os.Stdout, map[string]any{"accounts": accounts})
+				return outfmt.WriteJSON(os.Stdout, accounts)
 			}
 
 			for _, tok := range tokens {

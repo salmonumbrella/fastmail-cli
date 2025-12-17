@@ -74,9 +74,7 @@ func newEmailListCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
-					"emails": emails,
-				})
+				return outfmt.PrintJSON(emails)
 			}
 
 			if len(emails) == 0 {

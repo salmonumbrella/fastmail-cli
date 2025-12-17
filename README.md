@@ -173,8 +173,8 @@ fastmail email list
 
 # JSON for scripting
 fastmail --output=json email list
-fastmail --output=json email list | jq '.emails[0].subject'
-fastmail --output=json masked list | jq '.aliases[] | select(.state == "enabled")'
+fastmail --output=json email list | jq '.[0].subject'
+fastmail --output=json masked list | jq '.[] | select(.state == "enabled")'
 ```
 
 ## Environment Variables
