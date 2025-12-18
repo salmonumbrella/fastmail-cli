@@ -1,4 +1,9 @@
-.PHONY: build run clean test fmt lint release snapshot
+.PHONY: setup build run clean test fmt lint release snapshot
+
+# Install development tools and git hooks
+setup:
+	@command -v lefthook >/dev/null || (echo "Install lefthook: brew install lefthook" && exit 1)
+	lefthook install
 
 # Version info
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")

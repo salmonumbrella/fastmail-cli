@@ -187,6 +187,14 @@ fastmail --output=json masked list | jq '.[] | select(.state == "enabled")'
 
 ## Development
 
+After cloning, install git hooks:
+
+```bash
+make setup
+```
+
+This installs [lefthook](https://github.com/evilmartians/lefthook) pre-commit and pre-push hooks for linting and testing.
+
 ```bash
 make build    # Build binary to ./bin/fastmail
 make test     # Run tests
