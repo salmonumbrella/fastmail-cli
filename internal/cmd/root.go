@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/salmonumbrella/fastmail-cli/internal/config"
 	"github.com/salmonumbrella/fastmail-cli/internal/jmap"
+	"github.com/salmonumbrella/fastmail-cli/internal/logging"
 	"github.com/salmonumbrella/fastmail-cli/internal/outfmt"
 )
 
@@ -23,6 +24,7 @@ type rootFlags struct {
 	Color   string
 	Account string
 	Output  string
+	Debug   bool
 }
 
 type contextKey string
@@ -74,6 +76,11 @@ func Execute(args []string) error {
 				mode = outfmt.JSON
 			}
 			ctx := context.WithValue(cmd.Context(), outputModeKey, mode)
+
+			// Setup logging
+			logger := logging.Setup(flags.Debug)
+			ctx = logging.WithLogger(ctx, logger)
+
 			cmd.SetContext(ctx)
 			return nil
 		},
@@ -83,6 +90,7 @@ func Execute(args []string) error {
 	root.PersistentFlags().StringVar(&flags.Color, "color", flags.Color, "Color output: auto|always|never")
 	root.PersistentFlags().StringVar(&flags.Account, "account", envOr("FASTMAIL_ACCOUNT", ""), "Account email for API commands")
 	root.PersistentFlags().StringVar(&flags.Output, "output", flags.Output, "Output format: text|json")
+	root.PersistentFlags().BoolVar(&flags.Debug, "debug", false, "Enable debug logging")
 
 	root.AddCommand(newAuthCmd())
 	root.AddCommand(newEmailCmd(&flags))

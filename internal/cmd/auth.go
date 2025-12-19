@@ -13,6 +13,7 @@ import (
 
 	"github.com/salmonumbrella/fastmail-cli/internal/auth"
 	"github.com/salmonumbrella/fastmail-cli/internal/config"
+	"github.com/salmonumbrella/fastmail-cli/internal/logging"
 	"github.com/salmonumbrella/fastmail-cli/internal/outfmt"
 )
 
@@ -194,13 +195,18 @@ func newAuthStatusCmd() *cobra.Command {
 		Short: "Show current default account",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			logger := logging.FromContext(cmd.Context())
+			logger.Debug("auth status command started")
+
 			// Check for FASTMAIL_ACCOUNT environment variable
 			envAccount := os.Getenv("FASTMAIL_ACCOUNT")
+			logger.Debug("checking environment", "FASTMAIL_ACCOUNT", envAccount)
 
 			accounts, err := config.ListAccounts()
 			if err != nil {
 				return fmt.Errorf("failed to list accounts: %w", err)
 			}
+			logger.Debug("retrieved accounts", "count", len(accounts))
 
 			if len(accounts) == 0 {
 				if isJSON(cmd.Context()) {
