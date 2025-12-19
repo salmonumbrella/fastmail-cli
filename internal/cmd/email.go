@@ -640,9 +640,7 @@ func newEmailMailboxesCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
-					"mailboxes": mailboxes,
-				})
+				return outfmt.PrintJSON(mailboxes)
 			}
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
