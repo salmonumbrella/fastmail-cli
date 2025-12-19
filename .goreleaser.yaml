@@ -55,6 +55,33 @@ archives:
 
 checksum:
   name_template: "checksums.txt"
+  algorithm: sha256
+
+# Code signing for supply chain security
+# Signs checksums with cosign/sigstore for verifiable provenance
+# Requires: COSIGN_PRIVATE_KEY environment variable in CI/CD
+# Verify signatures with: cosign verify-blob --signature checksums.txt.sig checksums.txt
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--yes"
+      - "--output-signature=${signature}"
+      - "--output-certificate=${certificate}"
+      - "${artifact}"
+    artifacts: checksum
+    output: true
+
+# Software Bill of Materials (SBOM)
+# Generates SBOM for dependency tracking and vulnerability scanning
+# Format: SPDX (industry standard for SBOM)
+# Consumers can use this to audit dependencies and check for CVEs
+sboms:
+  - artifacts: archive
+    documents:
+      - "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}.sbom"
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
