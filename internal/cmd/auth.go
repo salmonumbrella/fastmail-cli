@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/99designs/keyring"
 	"github.com/spf13/cobra"
@@ -15,7 +16,23 @@ import (
 	"github.com/salmonumbrella/fastmail-cli/internal/config"
 	"github.com/salmonumbrella/fastmail-cli/internal/logging"
 	"github.com/salmonumbrella/fastmail-cli/internal/outfmt"
+	"github.com/salmonumbrella/fastmail-cli/internal/ui"
 )
+
+const credentialWarningAge = 90 * 24 * time.Hour // 90 days
+
+// checkCredentialAge returns a warning message if credentials are older than 90 days
+func checkCredentialAge(created time.Time) string {
+	if created.IsZero() {
+		return ""
+	}
+	age := time.Since(created)
+	if age > credentialWarningAge {
+		days := int(age.Hours() / 24)
+		return fmt.Sprintf("Warning: credentials are %d days old, consider rotating", days)
+	}
+	return ""
+}
 
 func newAuthCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -198,17 +215,20 @@ func newAuthStatusCmd() *cobra.Command {
 			logger := logging.FromContext(cmd.Context())
 			logger.Debug("auth status command started")
 
+			u := ui.FromContext(cmd.Context())
+
 			// Check for FASTMAIL_ACCOUNT environment variable
 			envAccount := os.Getenv("FASTMAIL_ACCOUNT")
 			logger.Debug("checking environment", "FASTMAIL_ACCOUNT", envAccount)
 
-			accounts, err := config.ListAccounts()
+			// Get tokens with metadata (including created_at)
+			tokens, err := config.ListTokens()
 			if err != nil {
 				return fmt.Errorf("failed to list accounts: %w", err)
 			}
-			logger.Debug("retrieved accounts", "count", len(accounts))
+			logger.Debug("retrieved accounts", "count", len(tokens))
 
-			if len(accounts) == 0 {
+			if len(tokens) == 0 {
 				if isJSON(cmd.Context()) {
 					return outfmt.WriteJSON(os.Stdout, map[string]any{
 						"default": nil,
@@ -219,6 +239,13 @@ func newAuthStatusCmd() *cobra.Command {
 				return nil
 			}
 
+			// Extract emails and sort
+			accounts := make([]string, len(tokens))
+			tokenMap := make(map[string]config.Token)
+			for i, tok := range tokens {
+				accounts[i] = tok.Email
+				tokenMap[tok.Email] = tok
+			}
 			sort.Strings(accounts)
 
 			var defaultAccount string
@@ -241,6 +268,14 @@ func newAuthStatusCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Default account: %s (from %s)\n", defaultAccount, source)
+
+			// Check credential age for default account
+			if tok, ok := tokenMap[defaultAccount]; ok {
+				if warning := checkCredentialAge(tok.CreatedAt); warning != "" {
+					u.Warning(warning)
+				}
+			}
+
 			fmt.Printf("Available accounts:\n")
 			for _, acc := range accounts {
 				marker := " "
