@@ -254,3 +254,65 @@ func (m *MockVacationService) DisableVacationResponse(ctx context.Context) error
 	}
 	return nil
 }
+
+// MockContactsService implements ContactsService for testing.
+// Each method can be overridden by setting the corresponding Func field.
+// If a Func is not set, the method returns nil/empty values.
+type MockContactsService struct {
+	GetContactsFunc      func(ctx context.Context, addressBookID string, limit int) ([]Contact, error)
+	GetContactByIDFunc   func(ctx context.Context, id string) (*Contact, error)
+	CreateContactFunc    func(ctx context.Context, contact *Contact) (*Contact, error)
+	UpdateContactFunc    func(ctx context.Context, id string, updates map[string]interface{}) (*Contact, error)
+	DeleteContactFunc    func(ctx context.Context, id string) error
+	SearchContactsFunc   func(ctx context.Context, query string, limit int) ([]Contact, error)
+	GetAddressBooksFunc  func(ctx context.Context) ([]AddressBook, error)
+}
+
+func (m *MockContactsService) GetContacts(ctx context.Context, addressBookID string, limit int) ([]Contact, error) {
+	if m.GetContactsFunc != nil {
+		return m.GetContactsFunc(ctx, addressBookID, limit)
+	}
+	return nil, nil
+}
+
+func (m *MockContactsService) GetContactByID(ctx context.Context, id string) (*Contact, error) {
+	if m.GetContactByIDFunc != nil {
+		return m.GetContactByIDFunc(ctx, id)
+	}
+	return nil, nil
+}
+
+func (m *MockContactsService) CreateContact(ctx context.Context, contact *Contact) (*Contact, error) {
+	if m.CreateContactFunc != nil {
+		return m.CreateContactFunc(ctx, contact)
+	}
+	return nil, nil
+}
+
+func (m *MockContactsService) UpdateContact(ctx context.Context, id string, updates map[string]interface{}) (*Contact, error) {
+	if m.UpdateContactFunc != nil {
+		return m.UpdateContactFunc(ctx, id, updates)
+	}
+	return nil, nil
+}
+
+func (m *MockContactsService) DeleteContact(ctx context.Context, id string) error {
+	if m.DeleteContactFunc != nil {
+		return m.DeleteContactFunc(ctx, id)
+	}
+	return nil
+}
+
+func (m *MockContactsService) SearchContacts(ctx context.Context, query string, limit int) ([]Contact, error) {
+	if m.SearchContactsFunc != nil {
+		return m.SearchContactsFunc(ctx, query, limit)
+	}
+	return nil, nil
+}
+
+func (m *MockContactsService) GetAddressBooks(ctx context.Context) ([]AddressBook, error) {
+	if m.GetAddressBooksFunc != nil {
+		return m.GetAddressBooksFunc(ctx)
+	}
+	return nil, nil
+}

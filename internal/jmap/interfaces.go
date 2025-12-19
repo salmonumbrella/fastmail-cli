@@ -102,3 +102,27 @@ type VacationService interface {
 	// DisableVacationResponse turns off the vacation responder
 	DisableVacationResponse(ctx context.Context) error
 }
+
+// ContactsService defines the interface for contacts operations.
+type ContactsService interface {
+	// GetContacts retrieves contacts from an address book with optional limit
+	GetContacts(ctx context.Context, addressBookID string, limit int) ([]Contact, error)
+
+	// GetContactByID retrieves a specific contact by ID
+	GetContactByID(ctx context.Context, id string) (*Contact, error)
+
+	// CreateContact creates a new contact
+	CreateContact(ctx context.Context, contact *Contact) (*Contact, error)
+
+	// UpdateContact updates an existing contact
+	UpdateContact(ctx context.Context, id string, updates map[string]interface{}) (*Contact, error)
+
+	// DeleteContact deletes a contact by ID
+	DeleteContact(ctx context.Context, id string) error
+
+	// SearchContacts searches for contacts matching a query string
+	SearchContacts(ctx context.Context, query string, limit int) ([]Contact, error)
+
+	// GetAddressBooks retrieves all address books for the account
+	GetAddressBooks(ctx context.Context) ([]AddressBook, error)
+}

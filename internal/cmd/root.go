@@ -102,6 +102,7 @@ func Execute(args []string) error {
 	root.AddCommand(newEmailCmd(&flags))
 	root.AddCommand(newMaskedCmd(&flags))
 	root.AddCommand(newVacationCmd(&flags))
+	root.AddCommand(newContactsCmd(&flags))
 
 	err := root.Execute()
 	if err != nil {
