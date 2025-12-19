@@ -371,3 +371,17 @@ func (m *MockCalendarService) DeleteEvent(ctx context.Context, id string) error 
 	}
 	return nil
 }
+
+// MockQuotaService implements QuotaService for testing.
+// Each method can be overridden by setting the corresponding Func field.
+// If a Func is not set, the method returns nil/empty values.
+type MockQuotaService struct {
+	GetQuotasFunc func(ctx context.Context) ([]Quota, error)
+}
+
+func (m *MockQuotaService) GetQuotas(ctx context.Context) ([]Quota, error) {
+	if m.GetQuotasFunc != nil {
+		return m.GetQuotasFunc(ctx)
+	}
+	return nil, nil
+}

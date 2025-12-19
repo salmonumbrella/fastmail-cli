@@ -149,6 +149,7 @@ type Client struct {
 var _ EmailService = (*Client)(nil)
 var _ MaskedEmailService = (*Client)(nil)
 var _ VacationService = (*Client)(nil)
+var _ QuotaService = (*Client)(nil)
 
 // NewClient creates a new JMAP client with the provided API token
 func NewClient(token string) *Client {

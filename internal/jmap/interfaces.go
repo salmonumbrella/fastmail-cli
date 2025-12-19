@@ -148,3 +148,9 @@ type CalendarService interface {
 	// DeleteEvent deletes a calendar event by ID
 	DeleteEvent(ctx context.Context, id string) error
 }
+
+// QuotaService defines the interface for quota operations.
+type QuotaService interface {
+	// GetQuotas retrieves all quotas for the account
+	GetQuotas(ctx context.Context) ([]Quota, error)
+}

@@ -104,6 +104,7 @@ func Execute(args []string) error {
 	root.AddCommand(newVacationCmd(&flags))
 	root.AddCommand(newContactsCmd(&flags))
 	root.AddCommand(newCalendarCmd(&flags))
+	root.AddCommand(newQuotaCmd(&flags))
 
 	err := root.Execute()
 	if err != nil {

@@ -49,6 +49,9 @@ var (
 
 	// ErrNoBody indicates neither text nor HTML body was provided
 	ErrNoBody = errors.New("either text or HTML body must be provided")
+
+	// ErrQuotaNotEnabled indicates quota API is not available
+	ErrQuotaNotEnabled = errors.New("quota API not enabled for this account")
 )
 
 // Typed errors for specific error conditions
