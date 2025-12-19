@@ -26,6 +26,12 @@ var (
 	// ErrContactsNotEnabled indicates contacts API is not available
 	ErrContactsNotEnabled = errors.New("contacts API not enabled for this account")
 
+	// ErrCalendarsNotEnabled indicates calendars API is not available
+	ErrCalendarsNotEnabled = errors.New("calendars API not enabled for this account")
+
+	// ErrEventNotFound indicates the requested calendar event was not found
+	ErrEventNotFound = errors.New("calendar event not found")
+
 	// ErrNoIdentities indicates no sending identities were found
 	ErrNoIdentities = errors.New("no sending identities found")
 

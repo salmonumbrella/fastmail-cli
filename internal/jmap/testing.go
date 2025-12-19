@@ -3,6 +3,7 @@ package jmap
 import (
 	"context"
 	"io"
+	"time"
 )
 
 // MockEmailService implements EmailService for testing.
@@ -315,4 +316,58 @@ func (m *MockContactsService) GetAddressBooks(ctx context.Context) ([]AddressBoo
 		return m.GetAddressBooksFunc(ctx)
 	}
 	return nil, nil
+}
+
+// MockCalendarService implements CalendarService for testing.
+// Each method can be overridden by setting the corresponding Func field.
+// If a Func is not set, the method returns nil/empty values.
+type MockCalendarService struct {
+	GetCalendarsFunc func(ctx context.Context) ([]Calendar, error)
+	GetEventsFunc    func(ctx context.Context, calendarID string, from, to time.Time, limit int) ([]CalendarEvent, error)
+	GetEventByIDFunc func(ctx context.Context, id string) (*CalendarEvent, error)
+	CreateEventFunc  func(ctx context.Context, event *CalendarEvent) (*CalendarEvent, error)
+	UpdateEventFunc  func(ctx context.Context, id string, updates map[string]interface{}) (*CalendarEvent, error)
+	DeleteEventFunc  func(ctx context.Context, id string) error
+}
+
+func (m *MockCalendarService) GetCalendars(ctx context.Context) ([]Calendar, error) {
+	if m.GetCalendarsFunc != nil {
+		return m.GetCalendarsFunc(ctx)
+	}
+	return nil, nil
+}
+
+func (m *MockCalendarService) GetEvents(ctx context.Context, calendarID string, from, to time.Time, limit int) ([]CalendarEvent, error) {
+	if m.GetEventsFunc != nil {
+		return m.GetEventsFunc(ctx, calendarID, from, to, limit)
+	}
+	return nil, nil
+}
+
+func (m *MockCalendarService) GetEventByID(ctx context.Context, id string) (*CalendarEvent, error) {
+	if m.GetEventByIDFunc != nil {
+		return m.GetEventByIDFunc(ctx, id)
+	}
+	return nil, nil
+}
+
+func (m *MockCalendarService) CreateEvent(ctx context.Context, event *CalendarEvent) (*CalendarEvent, error) {
+	if m.CreateEventFunc != nil {
+		return m.CreateEventFunc(ctx, event)
+	}
+	return nil, nil
+}
+
+func (m *MockCalendarService) UpdateEvent(ctx context.Context, id string, updates map[string]interface{}) (*CalendarEvent, error) {
+	if m.UpdateEventFunc != nil {
+		return m.UpdateEventFunc(ctx, id, updates)
+	}
+	return nil, nil
+}
+
+func (m *MockCalendarService) DeleteEvent(ctx context.Context, id string) error {
+	if m.DeleteEventFunc != nil {
+		return m.DeleteEventFunc(ctx, id)
+	}
+	return nil
 }

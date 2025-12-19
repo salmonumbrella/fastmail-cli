@@ -3,6 +3,7 @@ package jmap
 import (
 	"context"
 	"io"
+	"time"
 )
 
 // EmailService defines the interface for email operations in the JMAP client.
@@ -125,4 +126,25 @@ type ContactsService interface {
 
 	// GetAddressBooks retrieves all address books for the account
 	GetAddressBooks(ctx context.Context) ([]AddressBook, error)
+}
+
+// CalendarService defines the interface for calendar operations.
+type CalendarService interface {
+	// GetCalendars retrieves all calendars for the account
+	GetCalendars(ctx context.Context) ([]Calendar, error)
+
+	// GetEvents retrieves calendar events within a date range
+	GetEvents(ctx context.Context, calendarID string, from, to time.Time, limit int) ([]CalendarEvent, error)
+
+	// GetEventByID retrieves a specific calendar event by ID
+	GetEventByID(ctx context.Context, id string) (*CalendarEvent, error)
+
+	// CreateEvent creates a new calendar event
+	CreateEvent(ctx context.Context, event *CalendarEvent) (*CalendarEvent, error)
+
+	// UpdateEvent updates an existing calendar event
+	UpdateEvent(ctx context.Context, id string, updates map[string]interface{}) (*CalendarEvent, error)
+
+	// DeleteEvent deletes a calendar event by ID
+	DeleteEvent(ctx context.Context, id string) error
 }
