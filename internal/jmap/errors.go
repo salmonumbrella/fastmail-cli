@@ -1,6 +1,10 @@
 package jmap
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"time"
+)
 
 // Sentinel errors for JMAP operations
 var (
@@ -40,3 +44,69 @@ var (
 	// ErrNoBody indicates neither text nor HTML body was provided
 	ErrNoBody = errors.New("either text or HTML body must be provided")
 )
+
+// Typed errors for specific error conditions
+
+// ValidationError represents an input validation error
+type ValidationError struct {
+	Field   string
+	Message string
+}
+
+func (e *ValidationError) Error() string {
+	if e.Field != "" {
+		return fmt.Sprintf("%s: %s", e.Field, e.Message)
+	}
+	return e.Message
+}
+
+// RateLimitError indicates the request was rate limited
+type RateLimitError struct {
+	RetryAfter time.Duration
+}
+
+func (e *RateLimitError) Error() string {
+	return fmt.Sprintf("rate limited, retry after %v", e.RetryAfter)
+}
+
+// CircuitBreakerError indicates the circuit breaker is open
+type CircuitBreakerError struct{}
+
+func (e *CircuitBreakerError) Error() string {
+	return "circuit breaker open: service temporarily unavailable"
+}
+
+// AuthError represents an authentication error
+type AuthError struct {
+	Message string
+}
+
+func (e *AuthError) Error() string {
+	return fmt.Sprintf("authentication error: %s", e.Message)
+}
+
+// Helper functions for type checking errors
+
+// IsValidationError checks if an error is a ValidationError
+func IsValidationError(err error) bool {
+	var ve *ValidationError
+	return errors.As(err, &ve)
+}
+
+// IsRateLimitError checks if an error is a RateLimitError
+func IsRateLimitError(err error) bool {
+	var rle *RateLimitError
+	return errors.As(err, &rle)
+}
+
+// IsCircuitBreakerError checks if an error is a CircuitBreakerError
+func IsCircuitBreakerError(err error) bool {
+	var cbe *CircuitBreakerError
+	return errors.As(err, &cbe)
+}
+
+// IsAuthError checks if an error is an AuthError
+func IsAuthError(err error) bool {
+	var ae *AuthError
+	return errors.As(err, &ae)
+}
