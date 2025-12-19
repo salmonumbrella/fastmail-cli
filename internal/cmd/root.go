@@ -11,6 +11,7 @@ import (
 	"github.com/salmonumbrella/fastmail-cli/internal/jmap"
 	"github.com/salmonumbrella/fastmail-cli/internal/logging"
 	"github.com/salmonumbrella/fastmail-cli/internal/outfmt"
+	"github.com/salmonumbrella/fastmail-cli/internal/ui"
 )
 
 // Version information - set at build time via ldflags
@@ -71,13 +72,18 @@ func Execute(args []string) error {
   fastmail --output=json email list | jq .
 `),
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			// UI (must come first)
+			u := ui.New(flags.Color)
+			ctx := ui.WithUI(cmd.Context(), u)
+
+			// Output format
 			mode := outfmt.Text
 			if flags.Output == "json" {
 				mode = outfmt.JSON
 			}
-			ctx := context.WithValue(cmd.Context(), outputModeKey, mode)
+			ctx = context.WithValue(ctx, outputModeKey, mode)
 
-			// Setup logging
+			// Logging
 			logger := logging.Setup(flags.Debug)
 			ctx = logging.WithLogger(ctx, logger)
 
