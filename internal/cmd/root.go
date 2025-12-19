@@ -105,6 +105,7 @@ func Execute(args []string) error {
 	root.AddCommand(newContactsCmd(&flags))
 	root.AddCommand(newCalendarCmd(&flags))
 	root.AddCommand(newQuotaCmd(&flags))
+	root.AddCommand(newFilesCmd(&flags))
 
 	err := root.Execute()
 	if err != nil {
