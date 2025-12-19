@@ -3,10 +3,11 @@ package jmap
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
+	mathrand "math/rand"
 	"net"
 	"net/http"
 	"strconv"
@@ -29,6 +30,10 @@ const (
 
 	// MaxUploadSize is the maximum size for blob uploads (50MB)
 	MaxUploadSize = 50 * 1024 * 1024
+
+	// Default circuit breaker configuration values
+	DefaultCircuitBreakerThreshold  = 5
+	DefaultCircuitBreakerResetAfter = 30 * time.Second
 )
 
 // RetryConfig configures retry behavior for JMAP requests
@@ -50,6 +55,54 @@ func DefaultRetryConfig() *RetryConfig {
 		InitialDelay: DefaultInitialDelay,
 		MaxDelay:     DefaultMaxDelay,
 	}
+}
+
+// circuitBreaker implements a circuit breaker pattern to prevent cascading failures
+type circuitBreaker struct {
+	mu          sync.Mutex
+	failures    int
+	lastFailure time.Time
+	threshold   int           // number of failures before opening circuit
+	resetAfter  time.Duration // duration after which to reset the circuit
+}
+
+// newCircuitBreaker creates a new circuit breaker with default settings
+func newCircuitBreaker() *circuitBreaker {
+	return &circuitBreaker{
+		threshold:  DefaultCircuitBreakerThreshold,
+		resetAfter: DefaultCircuitBreakerResetAfter,
+	}
+}
+
+// isOpen returns true if the circuit breaker is open (blocking requests)
+func (cb *circuitBreaker) isOpen() bool {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+
+	if cb.failures >= cb.threshold {
+		if time.Since(cb.lastFailure) > cb.resetAfter {
+			// Reset circuit after timeout
+			cb.failures = 0
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+// recordSuccess resets the failure count on successful request
+func (cb *circuitBreaker) recordSuccess() {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	cb.failures = 0
+}
+
+// recordFailure increments the failure count and updates last failure time
+func (cb *circuitBreaker) recordFailure() {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	cb.failures++
+	cb.lastFailure = time.Now()
 }
 
 // Session represents a JMAP session with API endpoints and account information
@@ -81,14 +134,15 @@ type MethodResponse [3]any
 
 // Client is a JMAP client for interacting with the Fastmail API
 type Client struct {
-	token        string
-	baseURL      string
-	session      *Session
-	sessionFetch time.Time
-	sessionTTL   time.Duration
-	sessionMu    sync.RWMutex
-	http         *http.Client
-	retry        *RetryConfig
+	token          string
+	baseURL        string
+	session        *Session
+	sessionFetch   time.Time
+	sessionTTL     time.Duration
+	sessionMu      sync.RWMutex
+	http           *http.Client
+	retry          *RetryConfig
+	circuitBreaker *circuitBreaker
 }
 
 // Compile-time interface compliance checks
@@ -99,26 +153,28 @@ var _ VacationService = (*Client)(nil)
 // NewClient creates a new JMAP client with the provided API token
 func NewClient(token string) *Client {
 	return &Client{
-		token:      token,
-		baseURL:    DefaultBaseURL,
-		sessionTTL: 1 * time.Hour,
+		token:          token,
+		baseURL:        DefaultBaseURL,
+		sessionTTL:     1 * time.Hour,
 		http: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		retry: DefaultRetryConfig(),
+		retry:          DefaultRetryConfig(),
+		circuitBreaker: newCircuitBreaker(),
 	}
 }
 
 // NewClientWithBaseURL creates a new JMAP client with a custom base URL
 func NewClientWithBaseURL(token, baseURL string) *Client {
 	return &Client{
-		token:      token,
-		baseURL:    baseURL,
-		sessionTTL: 1 * time.Hour,
+		token:          token,
+		baseURL:        baseURL,
+		sessionTTL:     1 * time.Hour,
 		http: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		retry: DefaultRetryConfig(),
+		retry:          DefaultRetryConfig(),
+		circuitBreaker: newCircuitBreaker(),
 	}
 }
 
@@ -177,7 +233,7 @@ func (c *Client) getRetryDelay(attempt int, resp *http.Response) time.Duration {
 	// Add jitter (±20%) to prevent thundering herd
 	jitterRange := int64(delay) / 5 // 20% of delay
 	if jitterRange > 0 {
-		jitter := time.Duration(rand.Int63n(jitterRange*2) - jitterRange)
+		jitter := time.Duration(mathrand.Int63n(jitterRange*2) - jitterRange)
 		delay = delay + jitter
 	}
 
@@ -187,8 +243,28 @@ func (c *Client) getRetryDelay(attempt int, resp *http.Response) time.Duration {
 	return delay
 }
 
+// generateIdempotencyKey generates a random 16-byte hex string for idempotency
+func generateIdempotencyKey() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		// Fallback to timestamp-based key if crypto/rand fails
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return fmt.Sprintf("%x", b)
+}
+
+// isWriteOperation checks if a JMAP method is a write operation that needs idempotency
+func isWriteOperation(methodName string) bool {
+	return strings.HasSuffix(methodName, "/set") || strings.HasSuffix(methodName, "/send")
+}
+
 // GetSession fetches the JMAP session from the server and caches it for reuse
 func (c *Client) GetSession(ctx context.Context) (*Session, error) {
+	// Check circuit breaker
+	if c.circuitBreaker.isOpen() {
+		return nil, &CircuitBreakerError{}
+	}
+
 	// Read lock for checking cache
 	c.sessionMu.RLock()
 	if c.session != nil && time.Since(c.sessionFetch) < c.sessionTTL {
@@ -251,6 +327,17 @@ func (c *Client) GetSession(ctx context.Context) (*Session, error) {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 
+			// Record failure for 5xx errors (server errors)
+			if resp.StatusCode >= 500 && resp.StatusCode < 600 {
+				c.circuitBreaker.recordFailure()
+			}
+
+			// Check for 429 rate limiting
+			if resp.StatusCode == http.StatusTooManyRequests {
+				retryAfter := c.getRetryDelay(attempt, resp)
+				return nil, &RateLimitError{RetryAfter: retryAfter}
+			}
+
 			// Check if status is retriable
 			if !isRetriableStatus(resp.StatusCode) {
 				return nil, fmt.Errorf("session request failed with status %d: %s", resp.StatusCode, string(body))
@@ -307,6 +394,9 @@ func (c *Client) GetSession(ctx context.Context) (*Session, error) {
 		// Record the time of successful session fetch
 		c.sessionFetch = time.Now()
 
+		// Record success in circuit breaker
+		c.circuitBreaker.recordSuccess()
+
 		return c.session, nil
 	}
 
@@ -316,6 +406,11 @@ func (c *Client) GetSession(ctx context.Context) (*Session, error) {
 
 // MakeRequest executes a JMAP request and returns the response
 func (c *Client) MakeRequest(ctx context.Context, req *Request) (*Response, error) {
+	// Check circuit breaker
+	if c.circuitBreaker.isOpen() {
+		return nil, &CircuitBreakerError{}
+	}
+
 	// Ensure we have a session
 	session, err := c.GetSession(ctx)
 	if err != nil {
@@ -326,6 +421,19 @@ func (c *Client) MakeRequest(ctx context.Context, req *Request) (*Response, erro
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling request: %w", err)
+	}
+
+	// Generate idempotency key for write operations
+	var idempotencyKey string
+	for _, methodCall := range req.MethodCalls {
+		if len(methodCall) > 0 {
+			if methodName, ok := methodCall[0].(string); ok {
+				if isWriteOperation(methodName) {
+					idempotencyKey = generateIdempotencyKey()
+					break
+				}
+			}
+		}
 	}
 
 	var lastErr error
@@ -342,6 +450,11 @@ func (c *Client) MakeRequest(ctx context.Context, req *Request) (*Response, erro
 		// Add headers
 		httpReq.Header.Set("Authorization", "Bearer "+c.token)
 		httpReq.Header.Set("Content-Type", "application/json")
+
+		// Add idempotency key for write operations
+		if idempotencyKey != "" {
+			httpReq.Header.Set("X-Idempotency-Key", idempotencyKey)
+		}
 
 		// Execute request
 		httpResp, err = c.http.Do(httpReq)
@@ -369,6 +482,17 @@ func (c *Client) MakeRequest(ctx context.Context, req *Request) (*Response, erro
 			bodyBytes, _ := io.ReadAll(httpResp.Body)
 			httpResp.Body.Close()
 
+			// Record failure for 5xx errors (server errors)
+			if httpResp.StatusCode >= 500 && httpResp.StatusCode < 600 {
+				c.circuitBreaker.recordFailure()
+			}
+
+			// Check for 429 rate limiting
+			if httpResp.StatusCode == http.StatusTooManyRequests {
+				retryAfter := c.getRetryDelay(attempt, httpResp)
+				return nil, &RateLimitError{RetryAfter: retryAfter}
+			}
+
 			// Check if status is retriable
 			if !isRetriableStatus(httpResp.StatusCode) {
 				return nil, fmt.Errorf("JMAP request failed with status %d: %s", httpResp.StatusCode, string(bodyBytes))
@@ -394,6 +518,9 @@ func (c *Client) MakeRequest(ctx context.Context, req *Request) (*Response, erro
 		if err := json.NewDecoder(httpResp.Body).Decode(&response); err != nil {
 			return nil, fmt.Errorf("decoding response: %w", err)
 		}
+
+		// Record success in circuit breaker
+		c.circuitBreaker.recordSuccess()
 
 		return &response, nil
 	}
