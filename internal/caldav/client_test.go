@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewClient(t *testing.T) {
@@ -215,7 +216,12 @@ func TestClient_doRequest(t *testing.T) {
 			client := NewClient(server.URL, "testuser", "testtoken")
 			ctx := context.Background()
 
-			resp, err := client.doRequest(ctx, tt.method, server.URL+"/test", tt.body, tt.contentType)
+			var bodyReader io.Reader
+			if tt.body != "" {
+				bodyReader = strings.NewReader(tt.body)
+			}
+
+			resp, err := client.doRequest(ctx, tt.method, server.URL+"/test", bodyReader, tt.contentType)
 
 			if tt.wantErr {
 				if err == nil {
@@ -234,6 +240,156 @@ func TestClient_doRequest(t *testing.T) {
 			}
 
 			defer resp.Body.Close()
+		})
+	}
+}
+
+func TestClient_CreateEvent(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify method
+		if r.Method != "PUT" {
+			t.Errorf("Method = %q, want PUT", r.Method)
+		}
+
+		// Verify content-type
+		ct := r.Header.Get("Content-Type")
+		if ct != "text/calendar; charset=utf-8" {
+			t.Errorf("Content-Type = %q, want 'text/calendar; charset=utf-8'", ct)
+		}
+
+		// Verify auth header
+		auth := r.Header.Get("Authorization")
+		if !strings.HasPrefix(auth, "Basic ") {
+			t.Errorf("Authorization = %q, want Basic auth", auth)
+		}
+
+		// Verify body contains iCalendar data
+		body, _ := io.ReadAll(r.Body)
+		bodyStr := string(body)
+		if !strings.Contains(bodyStr, "BEGIN:VCALENDAR") {
+			t.Error("Body missing BEGIN:VCALENDAR")
+		}
+		if !strings.Contains(bodyStr, "BEGIN:VEVENT") {
+			t.Error("Body missing BEGIN:VEVENT")
+		}
+		if !strings.Contains(bodyStr, "UID:test-event-123") {
+			t.Error("Body missing UID")
+		}
+
+		// Verify URL contains event UID
+		if !strings.HasSuffix(r.URL.Path, "/test-event-123.ics") {
+			t.Errorf("URL path = %q, want to end with /test-event-123.ics", r.URL.Path)
+		}
+
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "testuser@example.com", "testtoken")
+	ctx := context.Background()
+
+	event := &Event{
+		UID:     "test-event-123",
+		Summary: "Test Event",
+		Start:   time.Date(2025, 1, 15, 10, 0, 0, 0, time.UTC),
+		End:     time.Date(2025, 1, 15, 11, 0, 0, 0, time.UTC),
+	}
+
+	err := client.CreateEvent(ctx, "Default", event)
+	if err != nil {
+		t.Errorf("CreateEvent() error = %v, want nil", err)
+	}
+}
+
+func TestClient_CreateEvent_MissingUID(t *testing.T) {
+	client := NewClient("https://caldav.example.com", "testuser", "testtoken")
+	ctx := context.Background()
+
+	event := &Event{
+		Summary: "Test Event",
+		Start:   time.Date(2025, 1, 15, 10, 0, 0, 0, time.UTC),
+		End:     time.Date(2025, 1, 15, 11, 0, 0, 0, time.UTC),
+		// UID is empty
+	}
+
+	err := client.CreateEvent(ctx, "Default", event)
+	if err == nil {
+		t.Error("CreateEvent() error = nil, want error for missing UID")
+	}
+
+	if !strings.Contains(err.Error(), "UID is required") {
+		t.Errorf("Error message = %q, want to contain 'UID is required'", err.Error())
+	}
+}
+
+func TestClient_CreateEvent_ServerError(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		wantErr    bool
+	}{
+		{
+			name:       "404 Not Found",
+			statusCode: http.StatusNotFound,
+			wantErr:    true,
+		},
+		{
+			name:       "500 Internal Server Error",
+			statusCode: http.StatusInternalServerError,
+			wantErr:    true,
+		},
+		{
+			name:       "403 Forbidden",
+			statusCode: http.StatusForbidden,
+			wantErr:    true,
+		},
+		{
+			name:       "201 Created (success)",
+			statusCode: http.StatusCreated,
+			wantErr:    false,
+		},
+		{
+			name:       "204 No Content (success)",
+			statusCode: http.StatusNoContent,
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				if tt.statusCode >= 400 {
+					w.Write([]byte("error response"))
+				}
+			}))
+			defer server.Close()
+
+			client := NewClient(server.URL, "testuser", "testtoken")
+			ctx := context.Background()
+
+			event := &Event{
+				UID:     "test-event-123",
+				Summary: "Test Event",
+				Start:   time.Date(2025, 1, 15, 10, 0, 0, 0, time.UTC),
+				End:     time.Date(2025, 1, 15, 11, 0, 0, 0, time.UTC),
+			}
+
+			err := client.CreateEvent(ctx, "Default", event)
+
+			if tt.wantErr && err == nil {
+				t.Error("CreateEvent() error = nil, want error")
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Errorf("CreateEvent() error = %v, want nil", err)
+			}
+
+			if tt.wantErr && err != nil {
+				if !strings.Contains(err.Error(), "CalDAV") {
+					t.Errorf("Error message = %q, want to contain 'CalDAV'", err.Error())
+				}
+			}
 		})
 	}
 }
