@@ -883,3 +883,38 @@ func TestMarkEmailsRead_EmptyInput(t *testing.T) {
 		t.Errorf("MarkEmailsRead() failed count = %d, want 0", len(result.Failed))
 	}
 }
+
+func TestBulkResult_Empty(t *testing.T) {
+	// Test that an empty BulkResult behaves correctly
+	result := &BulkResult{
+		Succeeded: []string{},
+		Failed:    map[string]string{},
+	}
+
+	if result == nil {
+		t.Fatal("BulkResult should not be nil")
+	}
+
+	if len(result.Succeeded) != 0 {
+		t.Errorf("Empty BulkResult succeeded count = %d, want 0", len(result.Succeeded))
+	}
+
+	if len(result.Failed) != 0 {
+		t.Errorf("Empty BulkResult failed count = %d, want 0", len(result.Failed))
+	}
+
+	// Test with nil initialization
+	var nilResult *BulkResult
+	if nilResult != nil {
+		t.Error("Nil BulkResult should be nil")
+	}
+
+	// Test zero value initialization
+	var zeroResult BulkResult
+	if zeroResult.Succeeded != nil {
+		t.Errorf("Zero value BulkResult.Succeeded should be nil, got %v", zeroResult.Succeeded)
+	}
+	if zeroResult.Failed != nil {
+		t.Errorf("Zero value BulkResult.Failed should be nil, got %v", zeroResult.Failed)
+	}
+}
