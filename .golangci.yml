@@ -1,0 +1,41 @@
+# .golangci.yml
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - unparam
+    - gosec
+  settings:
+    errcheck:
+      check-blank: true
+    govet:
+      enable:
+        - shadow
+    gosec:
+      excludes:
+        - G104 # Duplicates errcheck
+        - G115 # Integer overflow on small bounded values (retry count)
+        - G304 # File path from variable (expected in CLI)
+        - G306 # WriteFile permissions (test files only)
+        - G404 # Weak random for jitter timing (not security-critical)
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+
+run:
+  timeout: 5m
+  tests: true
+
+issues:
+  max-same-issues: 0
