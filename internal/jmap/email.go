@@ -1114,6 +1114,67 @@ func (c *Client) MarkEmailRead(ctx context.Context, id string, read bool) error 
 	return nil
 }
 
+// MarkEmailsRead marks multiple emails as read or unread in a single JMAP request.
+func (c *Client) MarkEmailsRead(ctx context.Context, ids []string, read bool) (*BulkResult, error) {
+	// Handle empty/nil input
+	if len(ids) == 0 {
+		return &BulkResult{
+			Succeeded: []string{},
+			Failed:    map[string]string{},
+		}, nil
+	}
+
+	session, err := c.GetSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use JMAP patch syntax: "keywords/$seen" to modify only that flag
+	// Setting to true marks as read, setting to null removes the flag (unread)
+	var seenValue any
+	if read {
+		seenValue = true
+	} else {
+		seenValue = nil // null in JMAP removes the keyword
+	}
+
+	// Build updates map for all IDs
+	updates := make(map[string]any)
+	for _, id := range ids {
+		updates[id] = map[string]any{
+			"keywords/$seen": seenValue,
+		}
+	}
+
+	req := &Request{
+		Using: []string{"urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"},
+		MethodCalls: []MethodCall{
+			{"Email/set", map[string]any{
+				"accountId": session.AccountID,
+				"update":    updates,
+			}, "markRead"},
+		},
+	}
+
+	resp, err := c.MakeRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	result, ok := resp.MethodResponses[0][1].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("unexpected response format")
+	}
+
+	// Parse succeeded and failed IDs
+	succeeded, failed := parseBulkUpdateResult(result)
+
+	return &BulkResult{
+		Succeeded: succeeded,
+		Failed:    failed,
+	}, nil
+}
+
 // GetThread retrieves all emails in a thread.
 func (c *Client) GetThread(ctx context.Context, threadID string) ([]Email, error) {
 	session, err := c.GetSession(ctx)
