@@ -580,6 +580,7 @@ func newEmailMoveCmd(flags *rootFlags) *cobra.Command {
 func newEmailBulkMoveCmd(flags *rootFlags) *cobra.Command {
 	var targetMailbox string
 	var dryRun bool
+	var yesFlag bool
 
 	cmd := &cobra.Command{
 		Use:   "bulk-move <emailId>...",
@@ -635,6 +636,19 @@ func newEmailBulkMoveCmd(flags *rootFlags) *cobra.Command {
 				return nil
 			}
 
+			// Prompt for confirmation unless --yes flag is set or JSON output mode
+			if !isJSON(cmd.Context()) && !yesFlag {
+				fmt.Fprintf(os.Stderr, "Move %d emails to %s? [y/N] ", len(args), mailboxName)
+				scanner := bufio.NewScanner(os.Stdin)
+				if !scanner.Scan() {
+					return fmt.Errorf("cancelled")
+				}
+				response := strings.ToLower(strings.TrimSpace(scanner.Text()))
+				if response != "y" && response != "yes" {
+					return fmt.Errorf("cancelled")
+				}
+			}
+
 			// Move emails using bulk API
 			results, err := client.MoveEmails(cmd.Context(), args, resolvedID)
 			if err != nil {
@@ -674,6 +688,7 @@ func newEmailBulkMoveCmd(flags *rootFlags) *cobra.Command {
 
 	cmd.Flags().StringVar(&targetMailbox, "to", "", "Target mailbox ID or name")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be moved without making changes")
+	cmd.Flags().BoolVarP(&yesFlag, "yes", "y", false, "Skip confirmation prompt")
 
 	return cmd
 }
