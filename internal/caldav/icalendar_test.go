@@ -418,6 +418,18 @@ func TestFoldLineDataIntegrity(t *testing.T) {
 			name:  "real ATTENDEE line",
 			input: "ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=Alice Smith:mailto:attendee1@example.com",
 		},
+		{
+			name:  "UTF-8 multibyte characters",
+			input: "SUMMARY:会议安排 - 产品评审会 - 这是一个非常长的标题包含许多中文字符需要正确折叠而不破坏字符编码",
+		},
+		{
+			name:  "UTF-8 emoji characters",
+			input: "SUMMARY:Meeting 🎉🎊🎁🎂🎈 - This is a long title with emojis that must be folded without corrupting the emoji bytes",
+		},
+		{
+			name:  "mixed ASCII and UTF-8",
+			input: "DESCRIPTION:Mixed content 你好世界 with Chinese 日本語 and Japanese characters spread through a very long line",
+		},
 	}
 
 	for _, tt := range tests {

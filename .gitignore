@@ -1,5 +1,7 @@
 # Build artifacts
 bin/
+dist/
+fastmail
 *.exe
 *.exe~
 *.dll

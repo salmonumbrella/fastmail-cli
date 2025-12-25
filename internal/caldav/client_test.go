@@ -34,6 +34,31 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
+func TestClient_String(t *testing.T) {
+	baseURL := "https://caldav.fastmail.com"
+	username := "test@example.com"
+	token := "super-secret-token-that-should-never-appear"
+
+	client := NewClient(baseURL, username, token)
+	str := client.String()
+
+	// Verify the string contains expected public fields
+	if !strings.Contains(str, baseURL) {
+		t.Errorf("String() should contain BaseURL, got: %s", str)
+	}
+	if !strings.Contains(str, username) {
+		t.Errorf("String() should contain Username, got: %s", str)
+	}
+
+	// Verify the token is NOT in the output
+	if strings.Contains(str, token) {
+		t.Errorf("String() must NOT contain token for security, got: %s", str)
+	}
+	if strings.Contains(str, "secret") {
+		t.Errorf("String() must NOT contain any part of token, got: %s", str)
+	}
+}
+
 func TestClient_CalendarHomeURL(t *testing.T) {
 	tests := []struct {
 		name     string

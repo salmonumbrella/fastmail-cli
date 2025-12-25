@@ -555,6 +555,18 @@ Times can be in RFC3339 format (2025-12-19T15:00:00Z) or simplified format (2025
 				return fmt.Errorf("invalid end time: %w", err)
 			}
 
+			// Validate time range
+			if !end.After(start) {
+				return fmt.Errorf("end time must be after start time")
+			}
+
+			// Validate attendee email addresses
+			for _, email := range attendees {
+				if !isValidEmail(email) {
+					return fmt.Errorf("invalid attendee email address: %s", email)
+				}
+			}
+
 			// Get credentials
 			account, err := requireAccount(flags)
 			if err != nil {

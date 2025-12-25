@@ -30,37 +30,51 @@ type Event struct {
 
 // foldLine folds a line at 75 octets per RFC 5545 section 3.1.
 // Continuation lines start with a single space.
+// This implementation handles UTF-8 correctly by folding at byte boundaries
+// without splitting multi-byte characters.
 func foldLine(line string) string {
 	const maxLen = 75
-	if len(line) <= maxLen {
+	bytes := []byte(line)
+	if len(bytes) <= maxLen {
 		return line + "\r\n"
 	}
 
 	var result strings.Builder
 	i := 0
 
-	// First line: up to 75 chars
-	end := maxLen
-	if end > len(line) {
-		end = len(line)
-	}
-	result.WriteString(line[:end])
+	// First line: up to 75 bytes, respecting UTF-8 boundaries
+	end := findSafeByteEnd(bytes, 0, maxLen)
+	result.Write(bytes[:end])
 	result.WriteString("\r\n")
 	i = end
 
-	// Continuation lines: 74 chars each (after leading space)
-	for i < len(line) {
+	// Continuation lines: 74 bytes each (after leading space), respecting UTF-8
+	for i < len(bytes) {
 		result.WriteString(" ") // Leading space for continuation
-		end = i + maxLen - 1    // 74 chars of content
-		if end > len(line) {
-			end = len(line)
-		}
-		result.WriteString(line[i:end])
+		end = findSafeByteEnd(bytes, i, maxLen-1) // 74 bytes of content
+		result.Write(bytes[i:end])
 		result.WriteString("\r\n")
 		i = end
 	}
 
 	return result.String()
+}
+
+// findSafeByteEnd finds a safe byte index to split at, respecting UTF-8 boundaries.
+// It returns the largest index <= start+maxBytes that doesn't split a UTF-8 character.
+func findSafeByteEnd(data []byte, start, maxBytes int) int {
+	end := start + maxBytes
+	if end >= len(data) {
+		return len(data)
+	}
+
+	// Walk back to find the start of the current UTF-8 character
+	// UTF-8 continuation bytes have the form 10xxxxxx (0x80-0xBF)
+	for end > start && data[end]&0xC0 == 0x80 {
+		end--
+	}
+
+	return end
 }
 
 // ToICS generates an iCalendar format string from the event

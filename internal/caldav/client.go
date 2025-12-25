@@ -16,12 +16,19 @@ const (
 	DefaultBaseURL = "https://caldav.fastmail.com"
 )
 
-// Client is a CalDAV client for interacting with Fastmail calendars and contacts
+// Client is a CalDAV client for interacting with Fastmail calendars and contacts.
+// WARNING: This struct contains credentials and should never be serialized or logged.
 type Client struct {
 	BaseURL    string
 	Username   string
 	token      string // unexported - security sensitive
 	httpClient *http.Client
+}
+
+// String implements fmt.Stringer with redacted sensitive fields.
+// This prevents accidental token exposure in logs or debug output.
+func (c *Client) String() string {
+	return fmt.Sprintf("CalDAV{BaseURL: %s, Username: %s}", c.BaseURL, c.Username)
 }
 
 // NewClient creates a new CalDAV client with the provided credentials
