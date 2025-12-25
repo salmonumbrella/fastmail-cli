@@ -794,6 +794,12 @@ func (c *Client) SendEmail(ctx context.Context, opts SendEmailOpts) (string, err
 	return "unknown", nil
 }
 
+// BulkResult contains the result of a bulk operation.
+type BulkResult struct {
+	Succeeded []string            // IDs that were successfully processed
+	Failed    map[string]string   // ID -> error message for failures
+}
+
 // DeleteEmail moves an email to trash.
 func (c *Client) DeleteEmail(ctx context.Context, id string) error {
 	session, err := c.GetSession(ctx)
@@ -850,6 +856,112 @@ func (c *Client) DeleteEmail(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+// DeleteEmails moves multiple emails to trash in a single JMAP request.
+// Returns a BulkResult containing IDs that succeeded and failed.
+// Handles partial failures gracefully - some emails may succeed while others fail.
+func (c *Client) DeleteEmails(ctx context.Context, ids []string) (*BulkResult, error) {
+	// Handle empty/nil input
+	if len(ids) == 0 {
+		return &BulkResult{
+			Succeeded: []string{},
+			Failed:    map[string]string{},
+		}, nil
+	}
+
+	session, err := c.GetSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find trash mailbox
+	mailboxes, err := c.GetMailboxes(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var trashMailbox *Mailbox
+	for i := range mailboxes {
+		if mailboxes[i].Role == "trash" {
+			trashMailbox = &mailboxes[i]
+			break
+		}
+	}
+
+	if trashMailbox == nil {
+		return nil, ErrNoTrashMailbox
+	}
+
+	// Build updates map for all IDs
+	updates := make(map[string]any)
+	for _, id := range ids {
+		updates[id] = map[string]any{
+			"mailboxIds": map[string]bool{trashMailbox.ID: true},
+		}
+	}
+
+	req := &Request{
+		Using: []string{"urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"},
+		MethodCalls: []MethodCall{
+			{"Email/set", map[string]any{
+				"accountId": session.AccountID,
+				"update":    updates,
+			}, "moveToTrash"},
+		},
+	}
+
+	resp, err := c.MakeRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	result, ok := resp.MethodResponses[0][1].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("unexpected response format")
+	}
+
+	// Parse succeeded and failed IDs
+	succeeded, failed := parseBulkUpdateResult(result)
+
+	return &BulkResult{
+		Succeeded: succeeded,
+		Failed:    failed,
+	}, nil
+}
+
+// parseBulkUpdateResult extracts succeeded and failed IDs from an Email/set update response.
+func parseBulkUpdateResult(result map[string]any) ([]string, map[string]string) {
+	succeeded := []string{}
+	failed := make(map[string]string)
+
+	// Extract succeeded updates
+	if updated, ok := result["updated"].(map[string]any); ok {
+		for id := range updated {
+			succeeded = append(succeeded, id)
+		}
+	}
+
+	// Extract failed updates
+	if notUpdated, ok := result["notUpdated"].(map[string]any); ok {
+		for id, errInfo := range notUpdated {
+			errMsg := "unknown error"
+			if errMap, ok := errInfo.(map[string]any); ok {
+				errType := getString(errMap, "type")
+				errDesc := getString(errMap, "description")
+				if errType != "" && errDesc != "" {
+					errMsg = errType + ": " + errDesc
+				} else if errType != "" {
+					errMsg = errType
+				} else if errDesc != "" {
+					errMsg = errDesc
+				}
+			}
+			failed[id] = errMsg
+		}
+	}
+
+	return succeeded, failed
 }
 
 // MoveEmail moves an email to a target mailbox.
