@@ -32,6 +32,7 @@ func newEmailCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newEmailGetCmd(flags))
 	cmd.AddCommand(newEmailSendCmd(flags))
 	cmd.AddCommand(newEmailDeleteCmd(flags))
+	cmd.AddCommand(newEmailBulkDeleteCmd(flags))
 	cmd.AddCommand(newEmailMoveCmd(flags))
 	cmd.AddCommand(newEmailMarkReadCmd(flags))
 	cmd.AddCommand(newEmailThreadCmd(flags))
@@ -440,6 +441,91 @@ func newEmailDeleteCmd(flags *rootFlags) *cobra.Command {
 			return nil
 		},
 	}
+
+	return cmd
+}
+
+func newEmailBulkDeleteCmd(flags *rootFlags) *cobra.Command {
+	var dryRun bool
+	var yesFlag bool
+
+	cmd := &cobra.Command{
+		Use:   "bulk-delete <emailId>...",
+		Short: "Delete multiple emails (move to trash)",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := getClient(flags)
+			if err != nil {
+				return err
+			}
+
+			// Handle dry-run mode
+			if dryRun {
+				if isJSON(cmd.Context()) {
+					return outfmt.PrintJSON(map[string]any{
+						"dryRun":    true,
+						"wouldDelete": args,
+					})
+				}
+
+				fmt.Printf("Would delete %d emails:\n", len(args))
+				for _, id := range args {
+					fmt.Printf("  - %s\n", id)
+				}
+				return nil
+			}
+
+			// Prompt for confirmation unless --yes flag is set or JSON output mode
+			if !isJSON(cmd.Context()) && !yesFlag {
+				fmt.Fprintf(os.Stderr, "Delete %d emails? [y/N] ", len(args))
+				scanner := bufio.NewScanner(os.Stdin)
+				if !scanner.Scan() {
+					return fmt.Errorf("cancelled")
+				}
+				response := strings.ToLower(strings.TrimSpace(scanner.Text()))
+				if response != "y" && response != "yes" {
+					return fmt.Errorf("cancelled")
+				}
+			}
+
+			// Delete emails using bulk API
+			results, err := client.DeleteEmails(cmd.Context(), args)
+			if err != nil {
+				return fmt.Errorf("failed to delete emails: %w", err)
+			}
+
+			// Handle JSON output
+			if isJSON(cmd.Context()) {
+				output := map[string]any{
+					"succeeded": results.Succeeded,
+				}
+				if len(results.Failed) > 0 {
+					output["failed"] = results.Failed
+				}
+				return outfmt.PrintJSON(output)
+			}
+
+			// Handle text output
+			succeededCount := len(results.Succeeded)
+			failedCount := len(results.Failed)
+
+			if failedCount == 0 {
+				// All succeeded
+				fmt.Printf("Deleted %d emails\n", succeededCount)
+			} else {
+				// Partial failure
+				fmt.Printf("Deleted %d emails, %d failed:\n", succeededCount, failedCount)
+				for id, errMsg := range results.Failed {
+					fmt.Printf("  %s: %s\n", id, errMsg)
+				}
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be deleted without making changes")
+	cmd.Flags().BoolVarP(&yesFlag, "yes", "y", false, "Skip confirmation prompt")
 
 	return cmd
 }
