@@ -355,7 +355,7 @@ func TestFoldLine(t *testing.T) {
 			input: strings.Repeat("A", 160),
 			expected: strings.Repeat("A", 75) + "\r\n" +
 				" " + strings.Repeat("A", 74) + "\r\n" +
-				" " + strings.Repeat("A", 10) + "\r\n",
+				" " + strings.Repeat("A", 11) + "\r\n",
 		},
 		{
 			name:  "ATTENDEE line exceeding 75 chars",
@@ -387,6 +387,53 @@ func TestFoldLine(t *testing.T) {
 				if len(line) > 75 {
 					t.Errorf("Line %d exceeds 75 octets: %d octets: %q", i, len(line), line)
 				}
+			}
+		})
+	}
+}
+
+// TestFoldLineDataIntegrity verifies that folding and unfolding preserves data
+func TestFoldLineDataIntegrity(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+	}{
+		{
+			name:  "150 characters (2 folds)",
+			input: strings.Repeat("B", 150),
+		},
+		{
+			name:  "160 characters (3 folds)",
+			input: strings.Repeat("A", 160),
+		},
+		{
+			name:  "200 characters",
+			input: strings.Repeat("C", 200),
+		},
+		{
+			name:  "300 characters",
+			input: strings.Repeat("D", 300),
+		},
+		{
+			name:  "real ATTENDEE line",
+			input: "ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=Alice Smith:mailto:attendee1@example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Fold the line
+			folded := foldLine(tt.input)
+
+			// Unfold by removing CRLF + space sequences
+			unfolded := strings.ReplaceAll(folded, "\r\n ", "")
+			// Remove final CRLF
+			unfolded = strings.TrimSuffix(unfolded, "\r\n")
+
+			// Verify data integrity: unfold(fold(x)) == x
+			if unfolded != tt.input {
+				t.Errorf("Data corruption detected!\nOriginal length: %d\nUnfolded length: %d\nOriginal: %q\nUnfolded: %q",
+					len(tt.input), len(unfolded), tt.input, unfolded)
 			}
 		})
 	}

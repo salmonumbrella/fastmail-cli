@@ -37,20 +37,29 @@ func foldLine(line string) string {
 	}
 
 	var result strings.Builder
-	for i := 0; i < len(line); i += maxLen {
-		if i > 0 {
-			result.WriteString(" ") // Continuation with leading space
-		}
-		end := i + maxLen
-		if i > 0 {
-			end = i + maxLen - 1 // Account for leading space in continuation
-		}
+	i := 0
+
+	// First line: up to 75 chars
+	end := maxLen
+	if end > len(line) {
+		end = len(line)
+	}
+	result.WriteString(line[:end])
+	result.WriteString("\r\n")
+	i = end
+
+	// Continuation lines: 74 chars each (after leading space)
+	for i < len(line) {
+		result.WriteString(" ") // Leading space for continuation
+		end = i + maxLen - 1    // 74 chars of content
 		if end > len(line) {
 			end = len(line)
 		}
 		result.WriteString(line[i:end])
 		result.WriteString("\r\n")
+		i = end
 	}
+
 	return result.String()
 }
 
