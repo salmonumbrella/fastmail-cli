@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/salmonumbrella/fastmail-cli/internal/config"
+	cerrors "github.com/salmonumbrella/fastmail-cli/internal/errors"
 	"github.com/salmonumbrella/fastmail-cli/internal/jmap"
 	"github.com/salmonumbrella/fastmail-cli/internal/logging"
 	"github.com/salmonumbrella/fastmail-cli/internal/outfmt"
@@ -47,7 +48,7 @@ func Execute(args []string) error {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		CompletionOptions: cobra.CompletionOptions{
-			DisableDefaultCmd: true,
+			DisableDefaultCmd: false,
 		},
 		Example: strings.TrimSpace(`
   # One-time setup (opens browser)
@@ -109,7 +110,14 @@ func Execute(args []string) error {
 
 	err := root.Execute()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		// Print the main error
+		fmt.Fprintln(os.Stderr, "Error:", err)
+
+		// Print suggestion if available
+		if cerrors.ContainsSuggestion(err) {
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "Suggestion:", cerrors.GetSuggestion(err))
+		}
 	}
 	return err
 }
