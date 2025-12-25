@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	cerrors "github.com/salmonumbrella/fastmail-cli/internal/errors"
 	"github.com/salmonumbrella/fastmail-cli/internal/jmap"
 	"github.com/salmonumbrella/fastmail-cli/internal/outfmt"
 	"github.com/spf13/cobra"
@@ -74,7 +75,11 @@ func newEmailListCmd(flags *rootFlags) *cobra.Command {
 
 			emails, err := client.GetEmails(cmd.Context(), mailboxID, limit)
 			if err != nil {
-				return fmt.Errorf("failed to list emails: %w", err)
+				listErr := cerrors.WithContext(err, "listing emails")
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "unauthorized") {
+					return cerrors.WithSuggestion(listErr, cerrors.SuggestionReauth)
+				}
+				return listErr
 			}
 
 			if isJSON(cmd.Context()) {
@@ -145,7 +150,11 @@ Examples:
 			}
 
 			if err != nil {
-				return fmt.Errorf("failed to search emails: %w", err)
+				searchErr := cerrors.WithContext(err, "searching emails")
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "unauthorized") {
+					return cerrors.WithSuggestion(searchErr, cerrors.SuggestionReauth)
+				}
+				return searchErr
 			}
 
 			if isJSON(cmd.Context()) {
@@ -224,7 +233,11 @@ func newEmailGetCmd(flags *rootFlags) *cobra.Command {
 
 			email, err := client.GetEmailByID(cmd.Context(), args[0])
 			if err != nil {
-				return fmt.Errorf("failed to get email: %w", err)
+				getErr := cerrors.WithContext(err, "fetching email")
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "unauthorized") {
+					return cerrors.WithSuggestion(getErr, cerrors.SuggestionReauth)
+				}
+				return getErr
 			}
 
 			if isJSON(cmd.Context()) {
@@ -388,7 +401,11 @@ Examples:
 			// Send the email
 			submissionID, err := client.SendEmail(cmd.Context(), opts)
 			if err != nil {
-				return fmt.Errorf("failed to send email: %w", err)
+				sendErr := cerrors.WithContext(err, "sending email")
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "unauthorized") {
+					return cerrors.WithSuggestion(sendErr, cerrors.SuggestionReauth)
+				}
+				return sendErr
 			}
 
 			if isJSON(cmd.Context()) {
@@ -430,7 +447,7 @@ func newEmailDeleteCmd(flags *rootFlags) *cobra.Command {
 
 			err = client.DeleteEmail(cmd.Context(), args[0])
 			if err != nil {
-				return fmt.Errorf("failed to delete email: %w", err)
+				return cerrors.WithContext(err, "deleting email")
 			}
 
 			if isJSON(cmd.Context()) {
@@ -493,7 +510,11 @@ func newEmailBulkDeleteCmd(flags *rootFlags) *cobra.Command {
 			// Delete emails using bulk API
 			results, err := client.DeleteEmails(cmd.Context(), args)
 			if err != nil {
-				return fmt.Errorf("failed to delete emails: %w", err)
+				deleteErr := cerrors.WithContext(err, "deleting emails")
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "unauthorized") {
+					return cerrors.WithSuggestion(deleteErr, cerrors.SuggestionReauth)
+				}
+				return deleteErr
 			}
 
 			// Handle JSON output
@@ -558,7 +579,7 @@ func newEmailMoveCmd(flags *rootFlags) *cobra.Command {
 
 			err = client.MoveEmail(cmd.Context(), args[0], targetMailbox)
 			if err != nil {
-				return fmt.Errorf("failed to move email: %w", err)
+				return cerrors.WithContext(err, "moving email")
 			}
 
 			if isJSON(cmd.Context()) {
@@ -653,7 +674,11 @@ func newEmailBulkMoveCmd(flags *rootFlags) *cobra.Command {
 			// Move emails using bulk API
 			results, err := client.MoveEmails(cmd.Context(), args, resolvedID)
 			if err != nil {
-				return fmt.Errorf("failed to move emails: %w", err)
+				moveErr := cerrors.WithContext(err, "moving emails")
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "unauthorized") {
+					return cerrors.WithSuggestion(moveErr, cerrors.SuggestionReauth)
+				}
+				return moveErr
 			}
 
 			// Handle JSON output
@@ -773,7 +798,11 @@ func newEmailBulkMarkReadCmd(flags *rootFlags) *cobra.Command {
 			// Mark emails using bulk API
 			results, err := client.MarkEmailsRead(cmd.Context(), args, !unread)
 			if err != nil {
-				return fmt.Errorf("failed to mark emails: %w", err)
+				markErr := cerrors.WithContext(err, "marking emails")
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "unauthorized") {
+					return cerrors.WithSuggestion(markErr, cerrors.SuggestionReauth)
+				}
+				return markErr
 			}
 
 			// Handle JSON output
@@ -1021,7 +1050,11 @@ By default, emails are imported to the Inbox and marked as unread.`,
 
 			emailID, err := client.ImportEmail(cmd.Context(), opts)
 			if err != nil {
-				return fmt.Errorf("failed to import email: %w", err)
+				importErr := cerrors.WithContext(err, "importing email")
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "unauthorized") {
+					return cerrors.WithSuggestion(importErr, cerrors.SuggestionReauth)
+				}
+				return importErr
 			}
 
 			if isJSON(cmd.Context()) {
@@ -1152,7 +1185,11 @@ in the current directory. You can get the blob ID from the 'attachments' command
 			// Download the blob
 			reader, err := client.DownloadBlob(cmd.Context(), blobID)
 			if err != nil {
-				return fmt.Errorf("failed to download attachment: %w", err)
+				downloadErr := cerrors.WithContext(err, "downloading attachment")
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "unauthorized") {
+					return cerrors.WithSuggestion(downloadErr, cerrors.SuggestionReauth)
+				}
+				return downloadErr
 			}
 			defer reader.Close()
 
@@ -1494,7 +1531,11 @@ func newEmailIdentitiesCmd(flags *rootFlags) *cobra.Command {
 
 			identities, err := client.GetIdentities(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to get identities: %w", err)
+				idErr := cerrors.WithContext(err, "fetching identities")
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "unauthorized") {
+					return cerrors.WithSuggestion(idErr, cerrors.SuggestionReauth)
+				}
+				return idErr
 			}
 
 			if isJSON(cmd.Context()) {
