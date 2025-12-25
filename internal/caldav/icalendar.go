@@ -1,0 +1,121 @@
+package caldav
+
+import (
+	"fmt"
+	"strings"
+	"time"
+)
+
+// Attendee represents a calendar event attendee
+type Attendee struct {
+	Email  string // Email address of the attendee
+	Name   string // Display name of the attendee
+	RSVP   bool   // Whether RSVP is requested
+	Status string // NEEDS-ACTION, ACCEPTED, DECLINED, TENTATIVE
+}
+
+// Event represents a calendar event
+type Event struct {
+	UID         string      // Unique identifier for the event
+	Summary     string      // Event title
+	Description string      // Event description
+	Location    string      // Event location
+	Start       time.Time   // Start time
+	End         time.Time   // End time
+	AllDay      bool        // Whether this is an all-day event
+	Organizer   string      // Organizer email address
+	Attendees   []Attendee  // List of attendees
+	Status      string      // CONFIRMED, TENTATIVE, CANCELLED
+}
+
+// ToICS generates an iCalendar format string from the event
+func (e *Event) ToICS() string {
+	var sb strings.Builder
+
+	// VCALENDAR wrapper
+	sb.WriteString("BEGIN:VCALENDAR\r\n")
+	sb.WriteString("VERSION:2.0\r\n")
+	sb.WriteString("PRODID:-//Fastmail CLI//NONSGML Event//EN\r\n")
+	sb.WriteString("CALSCALE:GREGORIAN\r\n")
+	sb.WriteString("METHOD:REQUEST\r\n")
+
+	// VEVENT
+	sb.WriteString("BEGIN:VEVENT\r\n")
+	sb.WriteString(fmt.Sprintf("UID:%s\r\n", e.UID))
+	sb.WriteString(fmt.Sprintf("DTSTAMP:%s\r\n", formatICSTime(time.Now().UTC())))
+
+	// Handle all-day events differently
+	if e.AllDay {
+		sb.WriteString(fmt.Sprintf("DTSTART;VALUE=DATE:%s\r\n", e.Start.Format("20060102")))
+		sb.WriteString(fmt.Sprintf("DTEND;VALUE=DATE:%s\r\n", e.End.Format("20060102")))
+	} else {
+		sb.WriteString(fmt.Sprintf("DTSTART:%s\r\n", formatICSTime(e.Start.UTC())))
+		sb.WriteString(fmt.Sprintf("DTEND:%s\r\n", formatICSTime(e.End.UTC())))
+	}
+
+	sb.WriteString(fmt.Sprintf("SUMMARY:%s\r\n", escapeICS(e.Summary)))
+
+	// Optional fields
+	if e.Description != "" {
+		sb.WriteString(fmt.Sprintf("DESCRIPTION:%s\r\n", escapeICS(e.Description)))
+	}
+
+	if e.Location != "" {
+		sb.WriteString(fmt.Sprintf("LOCATION:%s\r\n", escapeICS(e.Location)))
+	}
+
+	if e.Status != "" {
+		sb.WriteString(fmt.Sprintf("STATUS:%s\r\n", e.Status))
+	}
+
+	// Organizer
+	if e.Organizer != "" {
+		sb.WriteString(fmt.Sprintf("ORGANIZER;CN=%s:mailto:%s\r\n",
+			escapeICS(e.Organizer), e.Organizer))
+	}
+
+	// Attendees
+	for _, attendee := range e.Attendees {
+		var rsvpStr string
+		if attendee.RSVP {
+			rsvpStr = "TRUE"
+		} else {
+			rsvpStr = "FALSE"
+		}
+
+		status := attendee.Status
+		if status == "" {
+			status = "NEEDS-ACTION"
+		}
+
+		name := attendee.Name
+		if name == "" {
+			name = attendee.Email
+		}
+
+		sb.WriteString(fmt.Sprintf("ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=%s;RSVP=%s;CN=%s:mailto:%s\r\n",
+			status, rsvpStr, escapeICS(name), attendee.Email))
+	}
+
+	sb.WriteString("END:VEVENT\r\n")
+	sb.WriteString("END:VCALENDAR\r\n")
+
+	return sb.String()
+}
+
+// formatICSTime formats a time.Time as an iCalendar datetime string (UTC)
+// Format: YYYYMMDDTHHmmssZ
+func formatICSTime(t time.Time) string {
+	return t.Format("20060102T150405Z")
+}
+
+// escapeICS escapes special characters in iCalendar text values
+// Escapes: backslash, semicolon, comma, and newlines
+func escapeICS(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, ";", "\\;")
+	s = strings.ReplaceAll(s, ",", "\\,")
+	s = strings.ReplaceAll(s, "\n", "\\n")
+	s = strings.ReplaceAll(s, "\r", "")
+	return s
+}
