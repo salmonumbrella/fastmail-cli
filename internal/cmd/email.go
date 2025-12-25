@@ -36,6 +36,7 @@ func newEmailCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newEmailMoveCmd(flags))
 	cmd.AddCommand(newEmailBulkMoveCmd(flags))
 	cmd.AddCommand(newEmailMarkReadCmd(flags))
+	cmd.AddCommand(newEmailBulkMarkReadCmd(flags))
 	cmd.AddCommand(newEmailThreadCmd(flags))
 	cmd.AddCommand(newEmailAttachmentsCmd(flags))
 	cmd.AddCommand(newEmailDownloadCmd(flags))
@@ -729,6 +730,85 @@ func newEmailMarkReadCmd(flags *rootFlags) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&unread, "unread", false, "Mark as unread instead of read")
+
+	return cmd
+}
+
+func newEmailBulkMarkReadCmd(flags *rootFlags) *cobra.Command {
+	var unread bool
+	var dryRun bool
+
+	cmd := &cobra.Command{
+		Use:   "bulk-mark-read <emailId>...",
+		Short: "Mark multiple emails as read/unread",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := getClient(flags)
+			if err != nil {
+				return err
+			}
+
+			status := "read"
+			if unread {
+				status = "unread"
+			}
+
+			// Handle dry-run mode
+			if dryRun {
+				if isJSON(cmd.Context()) {
+					return outfmt.PrintJSON(map[string]any{
+						"dryRun":     true,
+						"status":     status,
+						"wouldMark": args,
+					})
+				}
+
+				fmt.Printf("Would mark %d emails as %s:\n", len(args), status)
+				for _, id := range args {
+					fmt.Printf("  - %s\n", id)
+				}
+				return nil
+			}
+
+			// Mark emails using bulk API
+			results, err := client.MarkEmailsRead(cmd.Context(), args, !unread)
+			if err != nil {
+				return fmt.Errorf("failed to mark emails: %w", err)
+			}
+
+			// Handle JSON output
+			if isJSON(cmd.Context()) {
+				output := map[string]any{
+					"status":    status,
+					"succeeded": results.Succeeded,
+				}
+				if len(results.Failed) > 0 {
+					output["failed"] = results.Failed
+				}
+				return outfmt.PrintJSON(output)
+			}
+
+			// Handle text output
+			succeededCount := len(results.Succeeded)
+			failedCount := len(results.Failed)
+
+			if failedCount == 0 {
+				// All succeeded
+				fmt.Printf("Marked %d emails as %s\n", succeededCount, status)
+			} else {
+				// Partial failure
+				fmt.Printf("Marked %d emails as %s, %d failed:\n", succeededCount, status, failedCount)
+				for id, errMsg := range results.Failed {
+					fmt.Printf("  %s: %s\n", id, errMsg)
+				}
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVar(&unread, "unread", false, "Mark as unread instead of read")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
 
 	return cmd
 }
