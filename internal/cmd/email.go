@@ -42,6 +42,7 @@ func newEmailCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newMailboxDeleteCmd(flags))
 	cmd.AddCommand(newMailboxRenameCmd(flags))
 	cmd.AddCommand(newEmailImportCmd(flags))
+	cmd.AddCommand(newEmailIdentitiesCmd(flags))
 
 	return cmd
 }
@@ -264,6 +265,7 @@ func newEmailSendCmd(flags *rootFlags) *cobra.Command {
 	var draft bool
 	var replyTo string
 	var attachments []string
+	var fromIdentity string
 
 	cmd := &cobra.Command{
 		Use:   "send",
@@ -348,6 +350,7 @@ Examples:
 				Subject:     subject,
 				TextBody:    body,
 				HTMLBody:    htmlBody,
+				From:        fromIdentity,
 				Attachments: attachmentOpts,
 			}
 
@@ -403,6 +406,7 @@ Examples:
 	cmd.Flags().StringVar(&subject, "subject", "", "Email subject")
 	cmd.Flags().StringVar(&body, "body", "", "Email body (plain text)")
 	cmd.Flags().StringVar(&htmlBody, "html", "", "Email body (HTML)")
+	cmd.Flags().StringVar(&fromIdentity, "from", "", "Send from this identity email (see: fastmail email identities)")
 	cmd.Flags().BoolVar(&draft, "draft", false, "Save as draft instead of sending")
 	cmd.Flags().StringVar(&replyTo, "reply-to", "", "Email ID to reply to (threads the draft)")
 	cmd.Flags().StringSliceVar(&attachments, "attach", nil, "Attach files (path or path:name)")
@@ -1187,6 +1191,55 @@ func newMailboxRenameCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			fmt.Printf("Renamed mailbox %s to '%s'\n", mailboxID, args[1])
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+func newEmailIdentitiesCmd(flags *rootFlags) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "identities",
+		Short: "List sending identities (aliases)",
+		Long:  "List all email identities/aliases you can send from.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := getClient(flags)
+			if err != nil {
+				return err
+			}
+
+			identities, err := client.GetIdentities(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get identities: %w", err)
+			}
+
+			if isJSON(cmd.Context()) {
+				return outfmt.PrintJSON(identities)
+			}
+
+			if len(identities) == 0 {
+				outfmt.Errorf("No identities found")
+				return nil
+			}
+
+			tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+			fmt.Fprintln(tw, "ID\tEMAIL\tNAME\tDEFAULT")
+			for _, id := range identities {
+				// MayDelete=false indicates the primary account identity
+				isDefault := ""
+				if !id.MayDelete {
+					isDefault = "*"
+				}
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
+					id.ID,
+					id.Email,
+					sanitizeTab(id.Name),
+					isDefault,
+				)
+			}
+			tw.Flush()
+
 			return nil
 		},
 	}
