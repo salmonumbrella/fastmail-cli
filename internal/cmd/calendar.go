@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"sort"
@@ -8,6 +10,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/salmonumbrella/fastmail-cli/internal/caldav"
+	"github.com/salmonumbrella/fastmail-cli/internal/config"
 	"github.com/salmonumbrella/fastmail-cli/internal/jmap"
 	"github.com/salmonumbrella/fastmail-cli/internal/outfmt"
 	"github.com/spf13/cobra"
@@ -29,6 +33,7 @@ If calendars are not available via JMAP, you'll receive an error.`,
 	cmd.AddCommand(newCalendarEventCreateCmd(flags))
 	cmd.AddCommand(newCalendarEventUpdateCmd(flags))
 	cmd.AddCommand(newCalendarEventDeleteCmd(flags))
+	cmd.AddCommand(newCalendarInviteCmd(flags))
 
 	return cmd
 }
@@ -503,4 +508,149 @@ func formatEventTime(t time.Time, isAllDay bool) string {
 		return t.Format("2006-01-02")
 	}
 	return t.Format("2006-01-02 15:04")
+}
+
+func newCalendarInviteCmd(flags *rootFlags) *cobra.Command {
+	var title string
+	var description string
+	var location string
+	var startStr string
+	var endStr string
+	var attendees []string
+	var calendarName string
+
+	cmd := &cobra.Command{
+		Use:   "invite",
+		Short: "Create a calendar event with attendees (sends invitations)",
+		Long: `Create a calendar event with attendees. Fastmail will automatically send email invitations to all attendees.
+
+Required fields: --title, --start, --end, --attendee (at least one)
+Times can be in RFC3339 format (2025-12-19T15:00:00Z) or simplified format (2025-12-19T15:00).`,
+		Example: `  fastmail calendar invite --title "Team Meeting" --start "2025-12-19T15:00:00Z" --end "2025-12-19T16:00:00Z" --attendee "colleague@example.com"
+  fastmail calendar invite --title "Project Review" --start "2025-12-20T14:00" --end "2025-12-20T15:00" --attendee "alice@example.com" --attendee "bob@example.com"
+  fastmail calendar invite --title "Lunch" --start "2025-12-21T12:00:00Z" --end "2025-12-21T13:00:00Z" --attendee "friend@example.com" --location "Restaurant" --description "Quarterly catch-up"`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate required flags
+			if title == "" {
+				return fmt.Errorf("--title is required")
+			}
+			if startStr == "" {
+				return fmt.Errorf("--start is required")
+			}
+			if endStr == "" {
+				return fmt.Errorf("--end is required")
+			}
+			if len(attendees) == 0 {
+				return fmt.Errorf("at least one --attendee is required")
+			}
+
+			// Parse times
+			start, err := parseFlexibleTime(startStr)
+			if err != nil {
+				return fmt.Errorf("invalid start time: %w", err)
+			}
+
+			end, err := parseFlexibleTime(endStr)
+			if err != nil {
+				return fmt.Errorf("invalid end time: %w", err)
+			}
+
+			// Get credentials
+			account, err := requireAccount(flags)
+			if err != nil {
+				return err
+			}
+
+			token, err := config.GetToken(account)
+			if err != nil {
+				return fmt.Errorf("failed to get token for %s: %w", account, err)
+			}
+
+			// Create CalDAV client
+			caldavClient := caldav.NewClient(caldav.DefaultBaseURL, account, token)
+
+			// Build attendee list
+			var attendeeList []caldav.Attendee
+			for _, email := range attendees {
+				attendeeList = append(attendeeList, caldav.Attendee{
+					Email: email,
+					RSVP:  true,
+					Status: "NEEDS-ACTION",
+				})
+			}
+
+			// Generate unique UID
+			uid := fmt.Sprintf("%d-%s@fastmail-cli", time.Now().Unix(), generateShortID())
+
+			// Create event
+			event := &caldav.Event{
+				UID:         uid,
+				Summary:     title,
+				Description: description,
+				Location:    location,
+				Start:       start,
+				End:         end,
+				Organizer:   account,
+				Attendees:   attendeeList,
+				Status:      "CONFIRMED",
+			}
+
+			// Create event via CalDAV
+			if err := caldavClient.CreateEvent(cmd.Context(), calendarName, event); err != nil {
+				return fmt.Errorf("failed to create calendar invite: %w", err)
+			}
+
+			if isJSON(cmd.Context()) {
+				return outfmt.PrintJSON(map[string]interface{}{
+					"uid":       uid,
+					"title":     title,
+					"start":     start,
+					"end":       end,
+					"attendees": attendees,
+				})
+			}
+
+			fmt.Printf("Created calendar invite: %s\n", title)
+			fmt.Printf("Invitations sent to: %s\n", strings.Join(attendees, ", "))
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&title, "title", "", "Event title (required)")
+	cmd.Flags().StringVar(&description, "description", "", "Event description")
+	cmd.Flags().StringVar(&location, "location", "", "Event location")
+	cmd.Flags().StringVar(&startStr, "start", "", "Start time (required, RFC3339 or 2006-01-02T15:04)")
+	cmd.Flags().StringVar(&endStr, "end", "", "End time (required, RFC3339 or 2006-01-02T15:04)")
+	cmd.Flags().StringArrayVar(&attendees, "attendee", []string{}, "Attendee email address (required, repeatable)")
+	cmd.Flags().StringVar(&calendarName, "calendar", "Default", "Calendar name")
+
+	return cmd
+}
+
+// parseFlexibleTime tries multiple time formats
+func parseFlexibleTime(s string) (time.Time, error) {
+	formats := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04",
+	}
+
+	for _, format := range formats {
+		t, err := time.Parse(format, s)
+		if err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("invalid time format (expected RFC3339, 2006-01-02T15:04:05, or 2006-01-02T15:04): %s", s)
+}
+
+// generateShortID generates an 8-character random ID
+func generateShortID() string {
+	bytes := make([]byte, 4)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp-based ID
+		return fmt.Sprintf("%08x", time.Now().UnixNano()&0xffffffff)
+	}
+	return hex.EncodeToString(bytes)
 }
