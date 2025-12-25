@@ -142,3 +142,24 @@ func TestEmailCmd_HasBulkDeleteSubcommand(t *testing.T) {
 		t.Error("expected 'bulk-delete' to be registered as a subcommand of 'email'")
 	}
 }
+
+// TestEmailBulkMoveCmd_RequiresToFlag verifies that the --to flag is required
+func TestEmailBulkMoveCmd_RequiresToFlag(t *testing.T) {
+	flags := &rootFlags{}
+	cmd := newEmailBulkMoveCmd(flags)
+
+	// Set args with email IDs but no --to flag
+	cmd.SetArgs([]string{"email1", "email2"})
+
+	// Execute should fail because --to is required
+	err := cmd.Execute()
+	if err == nil {
+		t.Error("expected error when --to flag is not provided, got nil")
+	}
+
+	// Verify the error is about the missing --to flag
+	expectedErrPattern := "--to is required"
+	if err != nil && !contains(err.Error(), expectedErrPattern) {
+		t.Errorf("expected error containing %q, got: %v", expectedErrPattern, err)
+	}
+}

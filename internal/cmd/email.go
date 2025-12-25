@@ -34,6 +34,7 @@ func newEmailCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newEmailDeleteCmd(flags))
 	cmd.AddCommand(newEmailBulkDeleteCmd(flags))
 	cmd.AddCommand(newEmailMoveCmd(flags))
+	cmd.AddCommand(newEmailBulkMoveCmd(flags))
 	cmd.AddCommand(newEmailMarkReadCmd(flags))
 	cmd.AddCommand(newEmailThreadCmd(flags))
 	cmd.AddCommand(newEmailAttachmentsCmd(flags))
@@ -572,6 +573,107 @@ func newEmailMoveCmd(flags *rootFlags) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&targetMailbox, "to", "", "Target mailbox ID or name")
+
+	return cmd
+}
+
+func newEmailBulkMoveCmd(flags *rootFlags) *cobra.Command {
+	var targetMailbox string
+	var dryRun bool
+
+	cmd := &cobra.Command{
+		Use:   "bulk-move <emailId>...",
+		Short: "Move multiple emails to a mailbox",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := getClient(flags)
+			if err != nil {
+				return err
+			}
+
+			if targetMailbox == "" {
+				return fmt.Errorf("--to is required")
+			}
+
+			// Resolve target mailbox ID or name
+			resolvedID, err := client.ResolveMailboxID(cmd.Context(), targetMailbox)
+			if err != nil {
+				return fmt.Errorf("invalid target mailbox: %w", err)
+			}
+
+			// Get mailbox name for output
+			mailboxes, err := client.GetMailboxes(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get mailboxes: %w", err)
+			}
+
+			var mailboxName string
+			for _, mb := range mailboxes {
+				if mb.ID == resolvedID {
+					mailboxName = mb.Name
+					break
+				}
+			}
+			if mailboxName == "" {
+				mailboxName = resolvedID
+			}
+
+			// Handle dry-run mode
+			if dryRun {
+				if isJSON(cmd.Context()) {
+					return outfmt.PrintJSON(map[string]any{
+						"dryRun":   true,
+						"mailbox":  mailboxName,
+						"wouldMove": args,
+					})
+				}
+
+				fmt.Printf("Would move %d emails to %s:\n", len(args), mailboxName)
+				for _, id := range args {
+					fmt.Printf("  - %s\n", id)
+				}
+				return nil
+			}
+
+			// Move emails using bulk API
+			results, err := client.MoveEmails(cmd.Context(), args, resolvedID)
+			if err != nil {
+				return fmt.Errorf("failed to move emails: %w", err)
+			}
+
+			// Handle JSON output
+			if isJSON(cmd.Context()) {
+				output := map[string]any{
+					"mailbox":   mailboxName,
+					"succeeded": results.Succeeded,
+				}
+				if len(results.Failed) > 0 {
+					output["failed"] = results.Failed
+				}
+				return outfmt.PrintJSON(output)
+			}
+
+			// Handle text output
+			succeededCount := len(results.Succeeded)
+			failedCount := len(results.Failed)
+
+			if failedCount == 0 {
+				// All succeeded
+				fmt.Printf("Moved %d emails to %s\n", succeededCount, mailboxName)
+			} else {
+				// Partial failure
+				fmt.Printf("Moved %d emails to %s, %d failed:\n", succeededCount, mailboxName, failedCount)
+				for id, errMsg := range results.Failed {
+					fmt.Printf("  %s: %s\n", id, errMsg)
+				}
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&targetMailbox, "to", "", "Target mailbox ID or name")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be moved without making changes")
 
 	return cmd
 }
