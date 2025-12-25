@@ -117,7 +117,7 @@ func (c *Client) GetMaskedEmailByEmail(ctx context.Context, email string) (*Mask
 
 // GetMaskedEmailsForDomain retrieves masked emails for a specific domain
 func (c *Client) GetMaskedEmailsForDomain(ctx context.Context, domain string) ([]MaskedEmail, error) {
-	normalizedDomain, err := normalizeDomain(domain)
+	normalizedDomain, err := NormalizeDomain(domain)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (c *Client) GetMaskedEmailsForDomain(ctx context.Context, domain string) ([
 
 // CreateMaskedEmail creates a new masked email alias for a domain
 func (c *Client) CreateMaskedEmail(ctx context.Context, domain, description string) (*MaskedEmail, error) {
-	normalizedDomain, err := normalizeDomain(domain)
+	normalizedDomain, err := NormalizeDomain(domain)
 	if err != nil {
 		return nil, err
 	}
@@ -327,9 +327,9 @@ func (c *Client) UpdateMaskedEmailDescription(ctx context.Context, id, descripti
 	return nil
 }
 
-// normalizeDomain converts a user-supplied URL or domain into a canonical origin
+// NormalizeDomain converts a user-supplied URL or domain into a canonical origin
 // string consisting of "<scheme>://<host>".
-func normalizeDomain(input string) (string, error) {
+func NormalizeDomain(input string) (string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
 		return "", fmt.Errorf("domain cannot be empty")
@@ -362,8 +362,8 @@ func normalizeDomain(input string) (string, error) {
 
 // domainsMatch compares two domain strings by normalizing them
 func domainsMatch(a, b string) bool {
-	na, errA := normalizeDomain(a)
-	nb, errB := normalizeDomain(b)
+	na, errA := NormalizeDomain(a)
+	nb, errB := NormalizeDomain(b)
 	if errA == nil && errB == nil {
 		return na == nb
 	}
