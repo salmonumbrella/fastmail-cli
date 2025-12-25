@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -20,7 +21,7 @@ const (
 type Client struct {
 	BaseURL    string
 	Username   string
-	Token      string
+	token      string // unexported - security sensitive
 	httpClient *http.Client
 }
 
@@ -29,7 +30,7 @@ func NewClient(baseURL, username, token string) *Client {
 	return &Client{
 		BaseURL:  baseURL,
 		Username: username,
-		Token:    token,
+		token:    token,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -40,14 +41,14 @@ func NewClient(baseURL, username, token string) *Client {
 // Format: {baseURL}/dav/calendars/user/{username}/
 func (c *Client) CalendarHomeURL() string {
 	baseURL := strings.TrimSuffix(c.BaseURL, "/")
-	return fmt.Sprintf("%s/dav/calendars/user/%s/", baseURL, c.Username)
+	return fmt.Sprintf("%s/dav/calendars/user/%s/", baseURL, url.QueryEscape(c.Username))
 }
 
 // AddressBookHomeURL returns the CalDAV address book home URL for the user
 // Format: {baseURL}/dav/addressbooks/user/{username}/
 func (c *Client) AddressBookHomeURL() string {
 	baseURL := strings.TrimSuffix(c.BaseURL, "/")
-	return fmt.Sprintf("%s/dav/addressbooks/user/%s/", baseURL, c.Username)
+	return fmt.Sprintf("%s/dav/addressbooks/user/%s/", baseURL, url.QueryEscape(c.Username))
 }
 
 // doRequest performs an authenticated HTTP request using basic auth
@@ -63,7 +64,7 @@ func (c *Client) doRequest(ctx context.Context, method, url, body, contentType s
 	}
 
 	// Set Basic Auth header (username:token)
-	auth := c.Username + ":" + c.Token
+	auth := c.Username + ":" + c.token
 	encodedAuth := base64.StdEncoding.EncodeToString([]byte(auth))
 	req.Header.Set("Authorization", "Basic "+encodedAuth)
 
@@ -76,10 +77,10 @@ func (c *Client) doRequest(ctx context.Context, method, url, body, contentType s
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
+	defer resp.Body.Close()
 
 	// Check for error status codes
 	if resp.StatusCode >= 400 {
-		defer resp.Body.Close()
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(bodyBytes))
 	}

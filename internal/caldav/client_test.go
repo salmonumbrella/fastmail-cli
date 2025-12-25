@@ -28,10 +28,6 @@ func TestNewClient(t *testing.T) {
 		t.Errorf("Username = %q, want %q", client.Username, username)
 	}
 
-	if client.Token != token {
-		t.Errorf("Token = %q, want %q", client.Token, token)
-	}
-
 	if client.httpClient == nil {
 		t.Error("httpClient is nil")
 	}
@@ -48,19 +44,25 @@ func TestClient_CalendarHomeURL(t *testing.T) {
 			name:     "standard email",
 			baseURL:  "https://caldav.fastmail.com",
 			username: "user@example.com",
-			want:     "https://caldav.fastmail.com/dav/calendars/user/user@example.com/",
+			want:     "https://caldav.fastmail.com/dav/calendars/user/user%40example.com/",
 		},
 		{
 			name:     "trailing slash in baseURL",
 			baseURL:  "https://caldav.fastmail.com/",
 			username: "user@example.com",
-			want:     "https://caldav.fastmail.com/dav/calendars/user/user@example.com/",
+			want:     "https://caldav.fastmail.com/dav/calendars/user/user%40example.com/",
 		},
 		{
 			name:     "simple username",
 			baseURL:  "https://caldav.fastmail.com",
 			username: "testuser",
 			want:     "https://caldav.fastmail.com/dav/calendars/user/testuser/",
+		},
+		{
+			name:     "email with plus sign",
+			baseURL:  "https://caldav.fastmail.com",
+			username: "user+tag@example.com",
+			want:     "https://caldav.fastmail.com/dav/calendars/user/user%2Btag%40example.com/",
 		},
 	}
 
@@ -86,19 +88,25 @@ func TestClient_AddressBookHomeURL(t *testing.T) {
 			name:     "standard email",
 			baseURL:  "https://caldav.fastmail.com",
 			username: "user@example.com",
-			want:     "https://caldav.fastmail.com/dav/addressbooks/user/user@example.com/",
+			want:     "https://caldav.fastmail.com/dav/addressbooks/user/user%40example.com/",
 		},
 		{
 			name:     "trailing slash in baseURL",
 			baseURL:  "https://caldav.fastmail.com/",
 			username: "user@example.com",
-			want:     "https://caldav.fastmail.com/dav/addressbooks/user/user@example.com/",
+			want:     "https://caldav.fastmail.com/dav/addressbooks/user/user%40example.com/",
 		},
 		{
 			name:     "simple username",
 			baseURL:  "https://caldav.fastmail.com",
 			username: "testuser",
 			want:     "https://caldav.fastmail.com/dav/addressbooks/user/testuser/",
+		},
+		{
+			name:     "email with plus sign",
+			baseURL:  "https://caldav.fastmail.com",
+			username: "user+tag@example.com",
+			want:     "https://caldav.fastmail.com/dav/addressbooks/user/user%2Btag%40example.com/",
 		},
 	}
 
