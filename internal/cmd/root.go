@@ -6,13 +6,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/salmonumbrella/fastmail-cli/internal/config"
 	cerrors "github.com/salmonumbrella/fastmail-cli/internal/errors"
 	"github.com/salmonumbrella/fastmail-cli/internal/jmap"
 	"github.com/salmonumbrella/fastmail-cli/internal/logging"
 	"github.com/salmonumbrella/fastmail-cli/internal/outfmt"
 	"github.com/salmonumbrella/fastmail-cli/internal/ui"
+	"github.com/spf13/cobra"
 )
 
 // Version information - set at build time via ldflags
@@ -27,12 +27,14 @@ type rootFlags struct {
 	Account string
 	Output  string
 	Debug   bool
+	Query   string
 }
 
 type contextKey string
 
 const (
 	outputModeKey contextKey = "outputMode"
+	queryKey      contextKey = "query"
 )
 
 func Execute(args []string) error {
@@ -84,6 +86,9 @@ func Execute(args []string) error {
 			}
 			ctx = context.WithValue(ctx, outputModeKey, mode)
 
+			// Query filter
+			ctx = context.WithValue(ctx, queryKey, flags.Query)
+
 			// Logging
 			logger := logging.Setup(flags.Debug)
 			ctx = logging.WithLogger(ctx, logger)
@@ -98,6 +103,7 @@ func Execute(args []string) error {
 	root.PersistentFlags().StringVar(&flags.Account, "account", envOr("FASTMAIL_ACCOUNT", ""), "Account email for API commands")
 	root.PersistentFlags().StringVar(&flags.Output, "output", flags.Output, "Output format: text|json")
 	root.PersistentFlags().BoolVar(&flags.Debug, "debug", false, "Enable debug logging")
+	root.PersistentFlags().StringVar(&flags.Query, "query", "", "JQ filter expression for JSON output")
 
 	root.AddCommand(newAuthCmd())
 	root.AddCommand(newEmailCmd(&flags))
@@ -149,6 +155,11 @@ func requireAccount(flags *rootFlags) (string, error) {
 func isJSON(ctx context.Context) bool {
 	mode, ok := ctx.Value(outputModeKey).(outfmt.Mode)
 	return ok && mode == outfmt.JSON
+}
+
+func getQuery(ctx context.Context) string {
+	query, _ := ctx.Value(queryKey).(string)
+	return query
 }
 
 // getClient creates a JMAP client for the configured account.

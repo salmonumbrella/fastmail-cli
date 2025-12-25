@@ -4,6 +4,8 @@ go 1.24.0
 
 require (
 	github.com/99designs/keyring v1.2.2
+	github.com/itchyny/gojq v0.12.18
+	github.com/muesli/termenv v0.16.0
 	github.com/spf13/cobra v1.8.1
 	golang.org/x/term v0.38.0
 )
@@ -16,10 +18,10 @@ require (
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/itchyny/timefmt-go v0.1.7 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
-	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	golang.org/x/sys v0.39.0 // indirect

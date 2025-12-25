@@ -83,7 +83,7 @@ func newEmailListCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(emails)
+				return outfmt.PrintJSONFiltered(emails, getQuery(cmd.Context()))
 			}
 
 			if len(emails) == 0 {
@@ -133,7 +133,7 @@ Examples:
   fastmail email search "from:alice@example.com"
   fastmail email search --snippets "invoice"
   fastmail email search "subject:meeting after:2025-01-01"`,
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := getClient(flags)
 			if err != nil {
@@ -482,7 +482,7 @@ func newEmailBulkDeleteCmd(flags *rootFlags) *cobra.Command {
 			if dryRun {
 				if isJSON(cmd.Context()) {
 					return outfmt.PrintJSON(map[string]any{
-						"dryRun":    true,
+						"dryRun":      true,
 						"wouldDelete": args,
 					})
 				}
@@ -645,8 +645,8 @@ func newEmailBulkMoveCmd(flags *rootFlags) *cobra.Command {
 			if dryRun {
 				if isJSON(cmd.Context()) {
 					return outfmt.PrintJSON(map[string]any{
-						"dryRun":   true,
-						"mailbox":  mailboxName,
+						"dryRun":    true,
+						"mailbox":   mailboxName,
 						"wouldMove": args,
 					})
 				}
@@ -782,8 +782,8 @@ func newEmailBulkMarkReadCmd(flags *rootFlags) *cobra.Command {
 			if dryRun {
 				if isJSON(cmd.Context()) {
 					return outfmt.PrintJSON(map[string]any{
-						"dryRun":     true,
-						"status":     status,
+						"dryRun":    true,
+						"status":    status,
 						"wouldMark": args,
 					})
 				}
