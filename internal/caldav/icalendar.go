@@ -28,6 +28,32 @@ type Event struct {
 	Status      string      // CONFIRMED, TENTATIVE, CANCELLED
 }
 
+// foldLine folds a line at 75 octets per RFC 5545 section 3.1.
+// Continuation lines start with a single space.
+func foldLine(line string) string {
+	const maxLen = 75
+	if len(line) <= maxLen {
+		return line + "\r\n"
+	}
+
+	var result strings.Builder
+	for i := 0; i < len(line); i += maxLen {
+		if i > 0 {
+			result.WriteString(" ") // Continuation with leading space
+		}
+		end := i + maxLen
+		if i > 0 {
+			end = i + maxLen - 1 // Account for leading space in continuation
+		}
+		if end > len(line) {
+			end = len(line)
+		}
+		result.WriteString(line[i:end])
+		result.WriteString("\r\n")
+	}
+	return result.String()
+}
+
 // ToICS generates an iCalendar format string from the event
 func (e *Event) ToICS() string {
 	var sb strings.Builder
@@ -41,7 +67,7 @@ func (e *Event) ToICS() string {
 
 	// VEVENT
 	sb.WriteString("BEGIN:VEVENT\r\n")
-	sb.WriteString(fmt.Sprintf("UID:%s\r\n", e.UID))
+	sb.WriteString(foldLine(fmt.Sprintf("UID:%s", e.UID)))
 	sb.WriteString(fmt.Sprintf("DTSTAMP:%s\r\n", formatICSTime(time.Now().UTC())))
 
 	// Handle all-day events differently
@@ -53,15 +79,15 @@ func (e *Event) ToICS() string {
 		sb.WriteString(fmt.Sprintf("DTEND:%s\r\n", formatICSTime(e.End.UTC())))
 	}
 
-	sb.WriteString(fmt.Sprintf("SUMMARY:%s\r\n", escapeICS(e.Summary)))
+	sb.WriteString(foldLine(fmt.Sprintf("SUMMARY:%s", escapeICS(e.Summary))))
 
 	// Optional fields
 	if e.Description != "" {
-		sb.WriteString(fmt.Sprintf("DESCRIPTION:%s\r\n", escapeICS(e.Description)))
+		sb.WriteString(foldLine(fmt.Sprintf("DESCRIPTION:%s", escapeICS(e.Description))))
 	}
 
 	if e.Location != "" {
-		sb.WriteString(fmt.Sprintf("LOCATION:%s\r\n", escapeICS(e.Location)))
+		sb.WriteString(foldLine(fmt.Sprintf("LOCATION:%s", escapeICS(e.Location))))
 	}
 
 	if e.Status != "" {
@@ -70,8 +96,8 @@ func (e *Event) ToICS() string {
 
 	// Organizer
 	if e.Organizer != "" {
-		sb.WriteString(fmt.Sprintf("ORGANIZER;CN=%s:mailto:%s\r\n",
-			escapeICS(e.Organizer), e.Organizer))
+		sb.WriteString(foldLine(fmt.Sprintf("ORGANIZER;CN=%s:mailto:%s",
+			escapeICS(e.Organizer), e.Organizer)))
 	}
 
 	// Attendees
@@ -93,8 +119,8 @@ func (e *Event) ToICS() string {
 			name = attendee.Email
 		}
 
-		sb.WriteString(fmt.Sprintf("ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=%s;RSVP=%s;CN=%s:mailto:%s\r\n",
-			status, rsvpStr, escapeICS(name), attendee.Email))
+		sb.WriteString(foldLine(fmt.Sprintf("ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=%s;RSVP=%s;CN=%s:mailto:%s",
+			status, rsvpStr, escapeICS(name), attendee.Email)))
 	}
 
 	sb.WriteString("END:VEVENT\r\n")

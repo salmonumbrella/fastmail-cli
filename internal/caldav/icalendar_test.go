@@ -90,16 +90,17 @@ func TestGenerateICS_WithAttendees(t *testing.T) {
 		t.Error("Missing or incorrect DTEND")
 	}
 
-	// Verify organizer
-	if !strings.Contains(ics, "ORGANIZER;CN=organizer@example.com:mailto:organizer@example.com") {
+	// Verify organizer and attendees (removing line breaks and continuation spaces for comparison)
+	// Lines may be folded, so we need to unfold them for comparison
+	unfoldedICS := strings.ReplaceAll(ics, "\r\n ", "")
+
+	if !strings.Contains(unfoldedICS, "ORGANIZER;CN=organizer@example.com:mailto:organizer@example.com") {
 		t.Error("Missing or incorrect ORGANIZER")
 	}
-
-	// Verify attendees
-	if !strings.Contains(ics, "ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=Alice Smith:mailto:attendee1@example.com") {
+	if !strings.Contains(unfoldedICS, "ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=Alice Smith:mailto:attendee1@example.com") {
 		t.Error("Missing or incorrect first ATTENDEE")
 	}
-	if !strings.Contains(ics, "ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=TRUE;CN=Bob Jones:mailto:attendee2@example.com") {
+	if !strings.Contains(unfoldedICS, "ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=TRUE;CN=Bob Jones:mailto:attendee2@example.com") {
 		t.Error("Missing or incorrect second ATTENDEE")
 	}
 
@@ -199,14 +200,17 @@ func TestGenerateICS_AttendeeDefaults(t *testing.T) {
 
 	ics := event.ToICS()
 
+	// Unfold lines for checking (lines may be folded)
+	unfoldedICS := strings.ReplaceAll(ics, "\r\n ", "")
+
 	// Verify defaults are applied
-	if !strings.Contains(ics, "PARTSTAT=NEEDS-ACTION") {
+	if !strings.Contains(unfoldedICS, "PARTSTAT=NEEDS-ACTION") {
 		t.Error("Should default to NEEDS-ACTION status")
 	}
-	if !strings.Contains(ics, "RSVP=FALSE") {
+	if !strings.Contains(unfoldedICS, "RSVP=FALSE") {
 		t.Error("Should default to RSVP=FALSE")
 	}
-	if !strings.Contains(ics, "CN=test@example.com") {
+	if !strings.Contains(unfoldedICS, "CN=test@example.com") {
 		t.Error("Should default CN to email when name is empty")
 	}
 }
@@ -321,5 +325,69 @@ func TestFormatICSTime_Timezone(t *testing.T) {
 
 	if result != expected {
 		t.Errorf("formatICSTime with timezone conversion = %q, want %q", result, expected)
+	}
+}
+
+func TestFoldLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "short line (no folding)",
+			input:    "UID:test-event-123@fastmail.com",
+			expected: "UID:test-event-123@fastmail.com\r\n",
+		},
+		{
+			name:     "exactly 75 characters (no folding)",
+			input:    strings.Repeat("X", 75),
+			expected: strings.Repeat("X", 75) + "\r\n",
+		},
+		{
+			name:  "76 characters (folding required)",
+			input: strings.Repeat("X", 76),
+			expected: strings.Repeat("X", 75) + "\r\n" +
+				" X\r\n",
+		},
+		{
+			name:  "long line requiring multiple folds",
+			input: strings.Repeat("A", 160),
+			expected: strings.Repeat("A", 75) + "\r\n" +
+				" " + strings.Repeat("A", 74) + "\r\n" +
+				" " + strings.Repeat("A", 10) + "\r\n",
+		},
+		{
+			name:  "ATTENDEE line exceeding 75 chars",
+			input: "ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=Alice Smith:mailto:attendee1@example.com",
+			expected: "ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=\r\n" +
+				" TRUE;CN=Alice Smith:mailto:attendee1@example.com\r\n",
+		},
+		{
+			name:  "long DESCRIPTION",
+			input: "DESCRIPTION:This is a very long description that exceeds seventy-five characters and must be folded according to RFC 5545",
+			expected: "DESCRIPTION:This is a very long description that exceeds seventy-five chara\r\n" +
+				" cters and must be folded according to RFC 5545\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := foldLine(tt.input)
+			if result != tt.expected {
+				t.Errorf("foldLine() result mismatch:\nGot:\n%q\nWant:\n%q", result, tt.expected)
+			}
+
+			// Verify all lines (except the last) are at most 75 characters + CRLF
+			lines := strings.Split(strings.TrimSuffix(result, "\r\n"), "\r\n")
+			for i, line := range lines {
+				if i > 0 && !strings.HasPrefix(line, " ") {
+					t.Errorf("Continuation line %d must start with space: %q", i, line)
+				}
+				if len(line) > 75 {
+					t.Errorf("Line %d exceeds 75 octets: %d octets: %q", i, len(line), line)
+				}
+			}
+		})
 	}
 }
