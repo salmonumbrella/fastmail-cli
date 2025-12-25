@@ -492,3 +492,168 @@ func stringSlicesEqual(a, b []string) bool {
 	}
 	return true
 }
+
+func TestMoveEmails_Multiple(t *testing.T) {
+	// Response for successful move of 3 emails
+	response := `{
+		"methodResponses": [
+			["Email/set", {
+				"accountId": "acc123",
+				"updated": {
+					"email1": {},
+					"email2": {},
+					"email3": {}
+				}
+			}, "moveEmails"]
+		]
+	}`
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(response))
+	}))
+	defer apiServer.Close()
+
+	sessionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"apiUrl": "` + apiServer.URL + `",
+			"uploadUrl": "` + apiServer.URL + `/{accountId}/",
+			"downloadUrl": "` + apiServer.URL + `",
+			"accounts": {"acc123": {}},
+			"primaryAccounts": {"urn:ietf:params:jmap:mail": "acc123"}
+		}`))
+	}))
+	defer sessionServer.Close()
+
+	client := NewClientWithBaseURL("test-token", sessionServer.URL)
+
+	ids := []string{"email1", "email2", "email3"}
+	targetMailboxID := "archive-456"
+	result, err := client.MoveEmails(context.Background(), ids, targetMailboxID)
+
+	if err != nil {
+		t.Fatalf("MoveEmails() unexpected error: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("MoveEmails() returned nil result")
+	}
+
+	// All should succeed
+	if len(result.Succeeded) != 3 {
+		t.Errorf("MoveEmails() succeeded count = %d, want 3", len(result.Succeeded))
+	}
+
+	// Check all IDs are in succeeded
+	expectedIDs := map[string]bool{"email1": true, "email2": true, "email3": true}
+	for _, id := range result.Succeeded {
+		if !expectedIDs[id] {
+			t.Errorf("MoveEmails() unexpected succeeded ID: %s", id)
+		}
+	}
+
+	// No failures
+	if len(result.Failed) != 0 {
+		t.Errorf("MoveEmails() failed count = %d, want 0", len(result.Failed))
+	}
+}
+
+func TestMoveEmails_PartialFailure(t *testing.T) {
+	// Response with some successes and some failures
+	response := `{
+		"methodResponses": [
+			["Email/set", {
+				"accountId": "acc123",
+				"updated": {
+					"email1": {},
+					"email3": {}
+				},
+				"notUpdated": {
+					"email2": {
+						"type": "notFound",
+						"description": "Email not found"
+					}
+				}
+			}, "moveEmails"]
+		]
+	}`
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(response))
+	}))
+	defer apiServer.Close()
+
+	sessionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"apiUrl": "` + apiServer.URL + `",
+			"uploadUrl": "` + apiServer.URL + `/{accountId}/",
+			"downloadUrl": "` + apiServer.URL + `",
+			"accounts": {"acc123": {}},
+			"primaryAccounts": {"urn:ietf:params:jmap:mail": "acc123"}
+		}`))
+	}))
+	defer sessionServer.Close()
+
+	client := NewClientWithBaseURL("test-token", sessionServer.URL)
+
+	ids := []string{"email1", "email2", "email3"}
+	targetMailboxID := "archive-456"
+	result, err := client.MoveEmails(context.Background(), ids, targetMailboxID)
+
+	if err != nil {
+		t.Fatalf("MoveEmails() unexpected error: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("MoveEmails() returned nil result")
+	}
+
+	// 2 should succeed
+	if len(result.Succeeded) != 2 {
+		t.Errorf("MoveEmails() succeeded count = %d, want 2", len(result.Succeeded))
+	}
+
+	// Check succeeded IDs
+	expectedSucceeded := map[string]bool{"email1": true, "email3": true}
+	for _, id := range result.Succeeded {
+		if !expectedSucceeded[id] {
+			t.Errorf("MoveEmails() unexpected succeeded ID: %s", id)
+		}
+	}
+
+	// 1 should fail
+	if len(result.Failed) != 1 {
+		t.Errorf("MoveEmails() failed count = %d, want 1", len(result.Failed))
+	}
+
+	// Check failed ID and error message
+	if errMsg, exists := result.Failed["email2"]; !exists {
+		t.Errorf("MoveEmails() email2 should be in failed map")
+	} else if errMsg == "" {
+		t.Errorf("MoveEmails() email2 should have error message")
+	}
+}
+
+func TestMoveEmails_EmptyInput(t *testing.T) {
+	client := NewClientWithBaseURL("test-token", "http://dummy")
+
+	result, err := client.MoveEmails(context.Background(), []string{}, "target-123")
+
+	if err != nil {
+		t.Fatalf("MoveEmails() unexpected error: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("MoveEmails() returned nil result")
+	}
+
+	// Empty input should return empty result
+	if len(result.Succeeded) != 0 {
+		t.Errorf("MoveEmails() succeeded count = %d, want 0", len(result.Succeeded))
+	}
+
+	if len(result.Failed) != 0 {
+		t.Errorf("MoveEmails() failed count = %d, want 0", len(result.Failed))
+	}
+}
