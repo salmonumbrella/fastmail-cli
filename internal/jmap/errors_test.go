@@ -439,6 +439,198 @@ func TestErrorTypes_TypedNilPointer(t *testing.T) {
 	}
 }
 
+// TestJMAPError tests the Error() method for JMAPError
+func TestJMAPError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      *JMAPError
+		expected string
+	}{
+		{
+			name:     "with description",
+			err:      &JMAPError{Type: "invalidArguments", Description: "unknown property: foo"},
+			expected: "JMAP error (invalidArguments): unknown property: foo",
+		},
+		{
+			name:     "without description",
+			err:      &JMAPError{Type: "serverFail"},
+			expected: "JMAP error: serverFail",
+		},
+		{
+			name:     "empty description",
+			err:      &JMAPError{Type: "notFound", Description: ""},
+			expected: "JMAP error: notFound",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.err.Error(); got != tt.expected {
+				t.Errorf("JMAPError.Error() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestNotFoundError tests the Error() method for NotFoundError
+func TestNotFoundError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      *NotFoundError
+		expected string
+	}{
+		{
+			name:     "with ID",
+			err:      &NotFoundError{Resource: "email", ID: "abc123"},
+			expected: "email not found: abc123",
+		},
+		{
+			name:     "without ID",
+			err:      &NotFoundError{Resource: "mailbox"},
+			expected: "mailbox not found",
+		},
+		{
+			name:     "empty ID",
+			err:      &NotFoundError{Resource: "contact", ID: ""},
+			expected: "contact not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.err.Error(); got != tt.expected {
+				t.Errorf("NotFoundError.Error() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestIsNotFoundError tests the IsNotFoundError helper function
+func TestIsNotFoundError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"NotFoundError type", &NotFoundError{Resource: "email", ID: "x"}, true},
+		{"ErrEmailNotFound sentinel", ErrEmailNotFound, true},
+		{"ErrContactNotFound sentinel", ErrContactNotFound, true},
+		{"ErrThreadNotFound sentinel", ErrThreadNotFound, true},
+		{"ErrMailboxNotFound sentinel", ErrMailboxNotFound, true},
+		{"ErrEventNotFound sentinel", ErrEventNotFound, true},
+		{"wrapped NotFoundError", fmt.Errorf("failed: %w", &NotFoundError{Resource: "thread", ID: "y"}), true},
+		{"other error", fmt.Errorf("random error"), false},
+		{"nil error", nil, false},
+		{"ValidationError", &ValidationError{Message: "invalid"}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsNotFoundError(tt.err); got != tt.want {
+				t.Errorf("IsNotFoundError() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestRequestContext tests the RequestContext error wrapper
+func TestRequestContext(t *testing.T) {
+	inner := &JMAPError{Type: "serverFail", Description: "oops"}
+	err := &RequestContext{
+		Method: "Email/get",
+		Err:    inner,
+	}
+
+	// Test Error() contains method name
+	if !strings.Contains(err.Error(), "Email/get") {
+		t.Errorf("error should contain method name, got: %s", err.Error())
+	}
+
+	// Test Unwrap returns inner error
+	if err.Unwrap() != inner {
+		t.Error("Unwrap() should return inner error")
+	}
+
+	// Test errors.As can unwrap to JMAPError
+	var jmapErr *JMAPError
+	if !errors.As(err, &jmapErr) {
+		t.Error("should unwrap to JMAPError")
+	}
+	if jmapErr.Type != "serverFail" {
+		t.Errorf("unwrapped JMAPError.Type = %q, want %q", jmapErr.Type, "serverFail")
+	}
+}
+
+// TestIsJMAPError tests the IsJMAPError helper function
+func TestIsJMAPError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "direct JMAPError",
+			err:      &JMAPError{Type: "invalidArguments", Description: "bad input"},
+			expected: true,
+		},
+		{
+			name:     "wrapped JMAPError",
+			err:      fmt.Errorf("request failed: %w", &JMAPError{Type: "serverFail"}),
+			expected: true,
+		},
+		{
+			name:     "JMAPError in RequestContext",
+			err:      &RequestContext{Method: "Email/get", Err: &JMAPError{Type: "notFound"}},
+			expected: true,
+		},
+		{
+			name:     "other error type",
+			err:      &ValidationError{Message: "invalid"},
+			expected: false,
+		},
+		{
+			name:     "sentinel error",
+			err:      ErrEmailNotFound,
+			expected: false,
+		},
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsJMAPError(tt.err); got != tt.expected {
+				t.Errorf("IsJMAPError() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestRequestContext_NestedUnwrap tests nested error unwrapping through RequestContext
+func TestRequestContext_NestedUnwrap(t *testing.T) {
+	// Create a deeply nested error
+	innermost := &NotFoundError{Resource: "email", ID: "abc123"}
+	middle := fmt.Errorf("inner wrap: %w", innermost)
+	outer := &RequestContext{Method: "Email/get", Err: middle}
+
+	// Should be able to unwrap to NotFoundError
+	var nfe *NotFoundError
+	if !errors.As(outer, &nfe) {
+		t.Error("should unwrap to NotFoundError through RequestContext")
+	}
+	if nfe.ID != "abc123" {
+		t.Errorf("unwrapped NotFoundError.ID = %q, want %q", nfe.ID, "abc123")
+	}
+
+	// IsNotFoundError should work too
+	if !IsNotFoundError(outer) {
+		t.Error("IsNotFoundError should return true for wrapped NotFoundError in RequestContext")
+	}
+}
+
 // TestSentinelErrors_Unchanged ensures existing sentinel errors still work
 func TestSentinelErrors_Unchanged(t *testing.T) {
 	sentinels := []struct {

@@ -119,3 +119,66 @@ func IsAuthError(err error) bool {
 	var ae *AuthError
 	return errors.As(err, &ae)
 }
+
+// JMAPError represents a JMAP protocol error response.
+type JMAPError struct {
+	Type        string // e.g., "invalidArguments", "serverFail"
+	Description string
+}
+
+func (e *JMAPError) Error() string {
+	if e.Description != "" {
+		return fmt.Sprintf("JMAP error (%s): %s", e.Type, e.Description)
+	}
+	return fmt.Sprintf("JMAP error: %s", e.Type)
+}
+
+// NotFoundError represents a resource not found error.
+type NotFoundError struct {
+	Resource string // e.g., "email", "contact", "mailbox"
+	ID       string
+}
+
+func (e *NotFoundError) Error() string {
+	if e.ID != "" {
+		return fmt.Sprintf("%s not found: %s", e.Resource, e.ID)
+	}
+	return fmt.Sprintf("%s not found", e.Resource)
+}
+
+// RequestContext wraps an error with JMAP method context.
+type RequestContext struct {
+	Method string // e.g., "Email/get", "Mailbox/query"
+	Err    error
+}
+
+func (e *RequestContext) Error() string {
+	return fmt.Sprintf("%s: %v", e.Method, e.Err)
+}
+
+func (e *RequestContext) Unwrap() error {
+	return e.Err
+}
+
+// IsJMAPError checks if an error is a JMAPError.
+func IsJMAPError(err error) bool {
+	var je *JMAPError
+	return errors.As(err, &je)
+}
+
+// IsNotFoundError checks if an error indicates a resource was not found.
+func IsNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var nfe *NotFoundError
+	if errors.As(err, &nfe) {
+		return true
+	}
+	// Also check sentinel errors
+	return errors.Is(err, ErrEmailNotFound) ||
+		errors.Is(err, ErrContactNotFound) ||
+		errors.Is(err, ErrThreadNotFound) ||
+		errors.Is(err, ErrMailboxNotFound) ||
+		errors.Is(err, ErrEventNotFound)
+}
