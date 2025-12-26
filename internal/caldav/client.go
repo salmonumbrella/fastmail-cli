@@ -82,8 +82,8 @@ func (c *Client) doRequest(ctx context.Context, method, url string, body io.Read
 
 	// Check for error status codes
 	if resp.StatusCode >= 400 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		bodyBytes, _ := io.ReadAll(resp.Body) //nolint:errcheck // best-effort read for error message
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
@@ -103,10 +103,10 @@ func (c *Client) CreateEvent(ctx context.Context, calendarName string, event *Ev
 	if err != nil {
 		return fmt.Errorf("CalDAV request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck // best-effort read for error message
 		return fmt.Errorf("CalDAV PUT failed: %s - %s", resp.Status, string(body))
 	}
 

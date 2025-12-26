@@ -72,7 +72,7 @@ Optionally filter by address book ID and limit the number of results.`,
 			}
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(tw, "NAME\tEMAIL\tPHONE\tCOMPANY")
+			_, _ = fmt.Fprintln(tw, "NAME\tEMAIL\tPHONE\tCOMPANY") //nolint:errcheck
 			for _, contact := range contacts {
 				email := "-"
 				if len(contact.Emails) > 0 {
@@ -86,14 +86,14 @@ Optionally filter by address book ID and limit the number of results.`,
 				if company == "" {
 					company = "-"
 				}
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", //nolint:errcheck
 					sanitizeTab(contact.Name),
 					sanitizeTab(email),
 					sanitizeTab(phone),
 					sanitizeTab(company),
 				)
 			}
-			tw.Flush()
+			_ = tw.Flush() //nolint:errcheck
 
 			return nil
 		},
@@ -263,7 +263,7 @@ At minimum, you must provide a name. Other fields are optional.`,
 	cmd.Flags().StringVar(&jobTitle, "job-title", "", "Job title")
 	cmd.Flags().StringVar(&notes, "notes", "", "Notes")
 
-	cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("name") //nolint:errcheck
 
 	return cmd
 }

@@ -9,13 +9,13 @@ import (
 
 // Mailbox represents a JMAP mailbox.
 type Mailbox struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Role         string `json:"role,omitempty"`
-	TotalEmails  int    `json:"totalEmails"`
-	UnreadEmails int    `json:"unreadEmails"`
-	TotalThreads int    `json:"totalThreads,omitempty"`
-	UnreadThreads int   `json:"unreadThreads,omitempty"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Role          string `json:"role,omitempty"`
+	TotalEmails   int    `json:"totalEmails"`
+	UnreadEmails  int    `json:"unreadEmails"`
+	TotalThreads  int    `json:"totalThreads,omitempty"`
+	UnreadThreads int    `json:"unreadThreads,omitempty"`
 }
 
 // EmailAddress represents an email address with optional name.
@@ -26,23 +26,23 @@ type EmailAddress struct {
 
 // Email represents a JMAP email.
 type Email struct {
-	ID            string                  `json:"id"`
-	ThreadID      string                  `json:"threadId,omitempty"`
-	Subject       string                  `json:"subject"`
-	From          []EmailAddress          `json:"from,omitempty"`
-	To            []EmailAddress          `json:"to,omitempty"`
-	CC            []EmailAddress          `json:"cc,omitempty"`
-	BCC           []EmailAddress          `json:"bcc,omitempty"`
-	ReplyTo       []EmailAddress          `json:"replyTo,omitempty"`
-	ReceivedAt    string                  `json:"receivedAt"`
-	Preview       string                  `json:"preview,omitempty"`
-	HasAttachment bool                    `json:"hasAttachment"`
-	Keywords      map[string]bool         `json:"keywords,omitempty"`
-	MailboxIDs    map[string]bool         `json:"mailboxIds,omitempty"`
-	BodyValues    map[string]BodyValue    `json:"bodyValues,omitempty"`
-	TextBody      []BodyPart              `json:"textBody,omitempty"`
-	HTMLBody      []BodyPart              `json:"htmlBody,omitempty"`
-	Attachments   []Attachment            `json:"attachments,omitempty"`
+	ID            string               `json:"id"`
+	ThreadID      string               `json:"threadId,omitempty"`
+	Subject       string               `json:"subject"`
+	From          []EmailAddress       `json:"from,omitempty"`
+	To            []EmailAddress       `json:"to,omitempty"`
+	CC            []EmailAddress       `json:"cc,omitempty"`
+	BCC           []EmailAddress       `json:"bcc,omitempty"`
+	ReplyTo       []EmailAddress       `json:"replyTo,omitempty"`
+	ReceivedAt    string               `json:"receivedAt"`
+	Preview       string               `json:"preview,omitempty"`
+	HasAttachment bool                 `json:"hasAttachment"`
+	Keywords      map[string]bool      `json:"keywords,omitempty"`
+	MailboxIDs    map[string]bool      `json:"mailboxIds,omitempty"`
+	BodyValues    map[string]BodyValue `json:"bodyValues,omitempty"`
+	TextBody      []BodyPart           `json:"textBody,omitempty"`
+	HTMLBody      []BodyPart           `json:"htmlBody,omitempty"`
+	Attachments   []Attachment         `json:"attachments,omitempty"`
 	// Headers for threading replies
 	MessageID  []string `json:"messageId,omitempty"`
 	InReplyTo  []string `json:"inReplyTo,omitempty"`
@@ -139,12 +139,12 @@ func (c *Client) GetMailboxes(ctx context.Context) ([]Mailbox, error) {
 		}
 
 		mailbox := Mailbox{
-			ID:   getString(mb, "id"),
-			Name: getString(mb, "name"),
-			Role: getString(mb, "role"),
-			TotalEmails:  getInt(mb, "totalEmails"),
-			UnreadEmails: getInt(mb, "unreadEmails"),
-			TotalThreads: getInt(mb, "totalThreads"),
+			ID:            getString(mb, "id"),
+			Name:          getString(mb, "name"),
+			Role:          getString(mb, "role"),
+			TotalEmails:   getInt(mb, "totalEmails"),
+			UnreadEmails:  getInt(mb, "unreadEmails"),
+			TotalThreads:  getInt(mb, "totalThreads"),
 			UnreadThreads: getInt(mb, "unreadThreads"),
 		}
 		mailboxes = append(mailboxes, mailbox)
@@ -231,8 +231,8 @@ func (c *Client) GetEmails(ctx context.Context, mailboxID string, limit int) ([]
 				"limit":     limit,
 			}, "query"},
 			{"Email/get", map[string]any{
-				"accountId": session.AccountID,
-				"#ids":      map[string]any{"resultOf": "query", "name": "Email/query", "path": "/ids"},
+				"accountId":  session.AccountID,
+				"#ids":       map[string]any{"resultOf": "query", "name": "Email/query", "path": "/ids"},
 				"properties": []string{"id", "subject", "from", "to", "receivedAt", "preview", "hasAttachment", "keywords"},
 			}, "emails"},
 		},
@@ -264,9 +264,9 @@ func (c *Client) GetEmailByID(ctx context.Context, id string) (*Email, error) {
 					"textBody", "htmlBody", "attachments", "bodyValues", "keywords", "threadId",
 					"messageId", "inReplyTo", "references",
 				},
-				"bodyProperties":       []string{"partId", "blobId", "type", "size"},
-				"fetchTextBodyValues":  true,
-				"fetchHTMLBodyValues":  true,
+				"bodyProperties":      []string{"partId", "blobId", "type", "size"},
+				"fetchTextBodyValues": true,
+				"fetchHTMLBodyValues": true,
 			}, "email"},
 		},
 	}
@@ -282,7 +282,7 @@ func (c *Client) GetEmailByID(ctx context.Context, id string) (*Email, error) {
 	}
 
 	// Check for notFound
-	if notFound, ok := result["notFound"].([]any); ok && len(notFound) > 0 {
+	if notFound, notFoundOK := result["notFound"].([]any); notFoundOK && len(notFound) > 0 {
 		return nil, fmt.Errorf("%w: %s", ErrEmailNotFound, id)
 	}
 
@@ -321,8 +321,8 @@ func (c *Client) SearchEmails(ctx context.Context, query string, limit int) ([]E
 				"limit":     limit,
 			}, "query"},
 			{"Email/get", map[string]any{
-				"accountId": session.AccountID,
-				"#ids":      map[string]any{"resultOf": "query", "name": "Email/query", "path": "/ids"},
+				"accountId":  session.AccountID,
+				"#ids":       map[string]any{"resultOf": "query", "name": "Email/query", "path": "/ids"},
 				"properties": []string{"id", "subject", "from", "to", "cc", "receivedAt", "preview", "hasAttachment", "keywords", "threadId"},
 			}, "emails"},
 		},
@@ -442,7 +442,8 @@ func (c *Client) SaveDraft(ctx context.Context, opts SendEmailOpts) (string, err
 	fromEmail := opts.From
 	if fromEmail == "" {
 		// No from specified, use default identity
-		identities, err := c.GetIdentities(ctx)
+		var identities []Identity
+		identities, err = c.GetIdentities(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -764,7 +765,7 @@ func (c *Client) SendEmail(ctx context.Context, opts SendEmailOpts) (string, err
 		return "", fmt.Errorf("unexpected response format")
 	}
 
-	if notCreated, ok := emailResult["notCreated"].(map[string]any); ok {
+	if notCreated, notCreatedOK := emailResult["notCreated"].(map[string]any); notCreatedOK {
 		if _, exists := notCreated["draft"]; exists {
 			return "", fmt.Errorf("failed to create email")
 		}
@@ -796,8 +797,8 @@ func (c *Client) SendEmail(ctx context.Context, opts SendEmailOpts) (string, err
 
 // BulkResult contains the result of a bulk operation.
 type BulkResult struct {
-	Succeeded []string            // IDs that were successfully processed
-	Failed    map[string]string   // ID -> error message for failures
+	Succeeded []string          // IDs that were successfully processed
+	Failed    map[string]string // ID -> error message for failures
 }
 
 // DeleteEmail moves an email to trash.
@@ -1219,8 +1220,8 @@ func (c *Client) GetThread(ctx context.Context, threadID string) ([]Email, error
 				"ids":       []string{actualThreadID},
 			}, "getThread"},
 			{"Email/get", map[string]any{
-				"accountId": session.AccountID,
-				"#ids":      map[string]any{"resultOf": "getThread", "name": "Thread/get", "path": "/list/*/emailIds"},
+				"accountId":  session.AccountID,
+				"#ids":       map[string]any{"resultOf": "getThread", "name": "Thread/get", "path": "/list/*/emailIds"},
 				"properties": []string{"id", "subject", "from", "to", "cc", "receivedAt", "preview", "hasAttachment", "keywords", "threadId"},
 			}, "emails"},
 		},
@@ -1544,8 +1545,8 @@ func (c *Client) SearchEmailsWithSnippets(ctx context.Context, query string, lim
 				"limit":     limit,
 			}, "query"},
 			{"Email/get", map[string]any{
-				"accountId": session.AccountID,
-				"#ids":      map[string]any{"resultOf": "query", "name": "Email/query", "path": "/ids"},
+				"accountId":  session.AccountID,
+				"#ids":       map[string]any{"resultOf": "query", "name": "Email/query", "path": "/ids"},
 				"properties": []string{"id", "subject", "from", "to", "cc", "receivedAt", "preview", "hasAttachment", "keywords", "threadId"},
 			}, "emails"},
 			{"SearchSnippet/get", map[string]any{
@@ -1748,10 +1749,10 @@ func (c *Client) RenameMailbox(ctx context.Context, id, newName string) error {
 
 // ImportEmailOpts contains options for importing an email.
 type ImportEmailOpts struct {
-	BlobID     string            // Required: blob ID of uploaded .eml file
-	MailboxIDs map[string]bool   // Required: mailboxes to add email to
-	Keywords   map[string]bool   // Optional: keywords like $seen, $flagged
-	ReceivedAt string            // Optional: override received date (RFC3339)
+	BlobID     string          // Required: blob ID of uploaded .eml file
+	MailboxIDs map[string]bool // Required: mailboxes to add email to
+	Keywords   map[string]bool // Optional: keywords like $seen, $flagged
+	ReceivedAt string          // Optional: override received date (RFC3339)
 }
 
 // ImportEmail imports a raw RFC 5322 email message into mailboxes.

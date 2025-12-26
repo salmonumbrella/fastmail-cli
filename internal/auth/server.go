@@ -50,7 +50,7 @@ func NewSetupServer() *SetupServer {
 // generateCSRFToken creates a random CSRF token
 func generateCSRFToken() string {
 	b := make([]byte, 32)
-	_, _ = rand.Read(b)
+	_, _ = rand.Read(b) //nolint:errcheck // crypto/rand.Read always returns len(b), nil
 	return hex.EncodeToString(b)
 }
 
@@ -102,10 +102,10 @@ func (s *SetupServer) Start(ctx context.Context) (*SetupResult, error) {
 	// Wait for result or context cancellation
 	select {
 	case result := <-s.result:
-		_ = s.server.Shutdown(context.Background())
+		_ = s.server.Shutdown(context.Background()) //nolint:errcheck // best-effort shutdown
 		return &result, result.Error
 	case <-ctx.Done():
-		_ = s.server.Shutdown(context.Background())
+		_ = s.server.Shutdown(context.Background()) //nolint:errcheck // best-effort shutdown
 		return nil, ctx.Err()
 	}
 }
@@ -127,7 +127,7 @@ func (s *SetupServer) handleSetupPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = tmpl.Execute(w, data)
+	_ = tmpl.Execute(w, data) //nolint:errcheck // best-effort template render
 }
 
 func (s *SetupServer) handleValidate(w http.ResponseWriter, r *http.Request) {
@@ -250,7 +250,7 @@ func (s *SetupServer) handleSuccess(w http.ResponseWriter, r *http.Request) {
 
 	email := r.URL.Query().Get("email")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = tmpl.Execute(w, map[string]string{"Email": email})
+	_ = tmpl.Execute(w, map[string]string{"Email": email}) //nolint:errcheck // best-effort template render
 }
 
 func (s *SetupServer) handleComplete(w http.ResponseWriter, r *http.Request) {
@@ -372,7 +372,7 @@ func (s *SetupServer) handleRemoveAccount(w http.ResponseWriter, r *http.Request
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data) //nolint:errcheck // best-effort JSON encode
 }
 
 func openBrowser(url string) error {

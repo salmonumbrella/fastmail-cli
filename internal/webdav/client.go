@@ -49,7 +49,7 @@ type response struct {
 
 // propStat contains the properties of a resource
 type propStat struct {
-	Prop prop   `xml:"prop"`
+	Prop   prop   `xml:"prop"`
 	Status string `xml:"status"`
 }
 
@@ -126,10 +126,10 @@ func (c *Client) List(ctx context.Context, filePath string) ([]FileInfo, error) 
 	if err != nil {
 		return nil, fmt.Errorf("executing PROPFIND: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusMultiStatus {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck // best-effort read for error message
 		return nil, fmt.Errorf("PROPFIND failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -179,7 +179,7 @@ func (c *Client) Upload(ctx context.Context, localPath, remotePath string) error
 	if err != nil {
 		return fmt.Errorf("opening local file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Get file info for size
 	stat, err := file.Stat()
@@ -206,10 +206,10 @@ func (c *Client) Upload(ctx context.Context, localPath, remotePath string) error
 	if err != nil {
 		return fmt.Errorf("uploading file: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck // best-effort read for error message
 		return fmt.Errorf("upload failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -236,10 +236,10 @@ func (c *Client) Download(ctx context.Context, remotePath, localPath string) err
 	if err != nil {
 		return fmt.Errorf("downloading file: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck // best-effort read for error message
 		return fmt.Errorf("download failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -248,7 +248,7 @@ func (c *Client) Download(ctx context.Context, remotePath, localPath string) err
 	if err != nil {
 		return fmt.Errorf("creating local file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Copy content
 	if _, err := io.Copy(file, resp.Body); err != nil {
@@ -281,10 +281,10 @@ func (c *Client) Mkdir(ctx context.Context, dirPath string) error {
 	if err != nil {
 		return fmt.Errorf("creating directory: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck // best-effort read for error message
 		// 405 Method Not Allowed typically means directory already exists
 		if resp.StatusCode == http.StatusMethodNotAllowed {
 			return fmt.Errorf("directory may already exist or path is invalid")
@@ -315,10 +315,10 @@ func (c *Client) Delete(ctx context.Context, filePath string) error {
 	if err != nil {
 		return fmt.Errorf("deleting: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck // best-effort read for error message
 		if resp.StatusCode == http.StatusNotFound {
 			return fmt.Errorf("file or directory not found")
 		}
@@ -354,10 +354,10 @@ func (c *Client) Move(ctx context.Context, source, destination string) error {
 	if err != nil {
 		return fmt.Errorf("moving: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck // best-effort read for error message
 		if resp.StatusCode == http.StatusNotFound {
 			return fmt.Errorf("source not found")
 		}

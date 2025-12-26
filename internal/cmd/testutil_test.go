@@ -16,6 +16,8 @@ import (
 //
 //	    // Your test code here
 //	}
+//
+//nolint:unused // test helper for future tests
 func setupTestEnvironment(t *testing.T) func() {
 	t.Helper()
 
@@ -45,6 +47,8 @@ func setupTestEnvironment(t *testing.T) func() {
 
 // setupMinimalTestEnvironment sets up only the FASTMAIL_ACCOUNT environment variable.
 // This is useful for tests that don't require authentication.
+//
+//nolint:unused // test helper for future tests
 func setupMinimalTestEnvironment(t *testing.T) func() {
 	t.Helper()
 

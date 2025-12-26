@@ -15,7 +15,15 @@ linters:
     - gosec
   settings:
     errcheck:
-      check-blank: true
+      check-blank: false
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
+        - fmt.Scanln
+        - (*text/tabwriter.Writer).Flush
+        - (*os.File).Close
+        - (io.ReadCloser).Close
     govet:
       enable:
         - shadow

@@ -86,7 +86,7 @@ func newAuthAddCmd() *cobra.Command {
 			} else {
 				// Prompt for API token securely
 				fmt.Fprintf(os.Stderr, "Enter API token for %s: ", email)
-				tokenBytes, err := term.ReadPassword(int(syscall.Stdin))
+				tokenBytes, err := term.ReadPassword(syscall.Stdin)
 				fmt.Fprintln(os.Stderr) // newline after password input
 				if err != nil {
 					return fmt.Errorf("failed to read token: %w", err)

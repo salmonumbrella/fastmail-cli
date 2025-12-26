@@ -71,7 +71,7 @@ func newCalendarListCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(tw, "ID\tNAME\tCOLOR\tVISIBLE\tSUBSCRIBED")
+			_, _ = fmt.Fprintln(tw, "ID\tNAME\tCOLOR\tVISIBLE\tSUBSCRIBED") //nolint:errcheck
 			for _, cal := range calendars {
 				visible := ""
 				if cal.IsVisible {
@@ -85,7 +85,7 @@ func newCalendarListCmd(flags *rootFlags) *cobra.Command {
 				if color == "" {
 					color = "-"
 				}
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", //nolint:errcheck
 					cal.ID,
 					sanitizeTab(cal.Name),
 					color,
@@ -93,7 +93,7 @@ func newCalendarListCmd(flags *rootFlags) *cobra.Command {
 					subscribed,
 				)
 			}
-			tw.Flush()
+			_ = tw.Flush() //nolint:errcheck
 
 			return nil
 		},
@@ -158,11 +158,11 @@ Dates should be in RFC3339 format (e.g., 2025-12-19T00:00:00Z) or YYYY-MM-DD.`,
 			}
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(tw, "ID\tTITLE\tSTART\tEND\tSTATUS")
+			_, _ = fmt.Fprintln(tw, "ID\tTITLE\tSTART\tEND\tSTATUS") //nolint:errcheck
 			for _, event := range events {
 				startStr := formatEventTime(event.Start, event.IsAllDay)
 				endStr := formatEventTime(event.End, event.IsAllDay)
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", //nolint:errcheck
 					event.ID,
 					sanitizeTab(event.Title),
 					startStr,
@@ -170,7 +170,7 @@ Dates should be in RFC3339 format (e.g., 2025-12-19T00:00:00Z) or YYYY-MM-DD.`,
 					event.Status,
 				)
 			}
-			tw.Flush()
+			_ = tw.Flush() //nolint:errcheck
 
 			return nil
 		},
@@ -352,10 +352,10 @@ Dates should be in RFC3339 format (e.g., 2025-12-19T15:00:00Z) or YYYY-MM-DD for
 	cmd.Flags().BoolVar(&allDay, "all-day", false, "All-day event")
 	cmd.Flags().StringVar(&status, "status", "confirmed", "Event status (confirmed, tentative, cancelled)")
 
-	cmd.MarkFlagRequired("calendar")
-	cmd.MarkFlagRequired("title")
-	cmd.MarkFlagRequired("start")
-	cmd.MarkFlagRequired("end")
+	_ = cmd.MarkFlagRequired("calendar") //nolint:errcheck
+	_ = cmd.MarkFlagRequired("title")    //nolint:errcheck
+	_ = cmd.MarkFlagRequired("start")    //nolint:errcheck
+	_ = cmd.MarkFlagRequired("end")      //nolint:errcheck
 
 	return cmd
 }
@@ -400,7 +400,8 @@ Only the fields you specify will be updated.`,
 			}
 
 			if startStr != "" {
-				start, err := parseDateTime(startStr)
+				var start time.Time
+				start, err = parseDateTime(startStr)
 				if err != nil {
 					return fmt.Errorf("invalid start date: %w", err)
 				}
@@ -408,7 +409,8 @@ Only the fields you specify will be updated.`,
 			}
 
 			if endStr != "" {
-				end, err := parseDateTime(endStr)
+				var end time.Time
+				end, err = parseDateTime(endStr)
 				if err != nil {
 					return fmt.Errorf("invalid end date: %w", err)
 				}
@@ -457,7 +459,7 @@ func newCalendarEventDeleteCmd(flags *rootFlags) *cobra.Command {
 			if !yes {
 				fmt.Print("Are you sure you want to delete this event? (y/N): ")
 				var response string
-				fmt.Scanln(&response)
+				_, _ = fmt.Scanln(&response) //nolint:errcheck
 				if strings.ToLower(response) != "y" {
 					outfmt.Errorf("Cancelled")
 					return nil

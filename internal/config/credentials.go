@@ -67,7 +67,7 @@ func SaveToken(email, token string) error {
 	}
 
 	// Check if this is the first account (make it primary)
-	accounts, _ := ListAccounts()
+	accounts, _ := ListAccounts() //nolint:errcheck // best-effort check for existing accounts
 	isPrimary := len(accounts) == 0
 
 	payload, err := json.Marshal(storedToken{
@@ -115,7 +115,7 @@ func SetPrimaryAccount(email string) error {
 		}
 
 		var st storedToken
-		if err := json.Unmarshal(item.Data, &st); err != nil {
+		if unmarshalErr := json.Unmarshal(item.Data, &st); unmarshalErr != nil {
 			continue
 		}
 
@@ -126,7 +126,7 @@ func SetPrimaryAccount(email string) error {
 			continue
 		}
 
-		_ = ring.Set(keyring.Item{
+		_ = ring.Set(keyring.Item{ //nolint:errcheck // best-effort update
 			Key:  k,
 			Data: payload,
 		})

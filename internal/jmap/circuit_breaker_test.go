@@ -273,7 +273,7 @@ func TestGenerateIdempotencyKey(t *testing.T) {
 
 	// Keys should only contain hex characters
 	for _, c := range key1 {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) { //nolint:staticcheck // clearer than De Morgan form
 			t.Errorf("key contains non-hex character: %c", c)
 		}
 	}

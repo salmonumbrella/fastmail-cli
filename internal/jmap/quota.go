@@ -54,9 +54,9 @@ func (c *Client) GetQuotas(ctx context.Context) ([]Quota, error) {
 	}
 
 	// Check for error
-	if errType, ok := result["type"].(string); ok {
+	if errType, errOK := result["type"].(string); errOK {
 		desc := ""
-		if d, ok := result["description"].(string); ok {
+		if d, descOK := result["description"].(string); descOK {
 			desc = d
 		}
 		return nil, fmt.Errorf("quota error: %s - %s", errType, desc)

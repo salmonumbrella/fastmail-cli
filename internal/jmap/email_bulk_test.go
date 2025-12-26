@@ -891,10 +891,6 @@ func TestBulkResult_Empty(t *testing.T) {
 		Failed:    map[string]string{},
 	}
 
-	if result == nil {
-		t.Fatal("BulkResult should not be nil")
-	}
-
 	if len(result.Succeeded) != 0 {
 		t.Errorf("Empty BulkResult succeeded count = %d, want 0", len(result.Succeeded))
 	}

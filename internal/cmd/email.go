@@ -66,7 +66,8 @@ func newEmailListCmd(flags *rootFlags) *cobra.Command {
 
 			// Resolve mailbox ID or name
 			if mailboxID != "" {
-				resolvedID, err := client.ResolveMailboxID(cmd.Context(), mailboxID)
+				var resolvedID string
+				resolvedID, err = client.ResolveMailboxID(cmd.Context(), mailboxID)
 				if err != nil {
 					return fmt.Errorf("invalid mailbox: %w", err)
 				}
@@ -320,13 +321,15 @@ Examples:
 			// Process attachments
 			var attachmentOpts []jmap.AttachmentOpts
 			for _, att := range attachments {
-				attPath, attName, err := parseAttachmentFlag(att)
+				var attPath, attName string
+				attPath, attName, err = parseAttachmentFlag(att)
 				if err != nil {
 					return fmt.Errorf("invalid attachment: %w", err)
 				}
 
 				// Verify file exists and get size
-				fileInfo, err := os.Stat(attPath)
+				var fileInfo os.FileInfo
+				fileInfo, err = os.Stat(attPath)
 				if err != nil {
 					return fmt.Errorf("cannot access attachment '%s': %w", attPath, err)
 				}
@@ -340,14 +343,16 @@ Examples:
 				}
 
 				// Open and upload the file
-				file, err := os.Open(attPath)
+				var file *os.File
+				file, err = os.Open(attPath)
 				if err != nil {
 					return fmt.Errorf("failed to open attachment '%s': %w", attPath, err)
 				}
 
 				mimeType := getMimeType(attPath)
-				uploadResult, err := client.UploadBlob(cmd.Context(), file, mimeType)
-				file.Close()
+				var uploadResult *jmap.UploadBlobResult
+				uploadResult, err = client.UploadBlob(cmd.Context(), file, mimeType)
+				_ = file.Close()
 				if err != nil {
 					return fmt.Errorf("failed to upload attachment '%s': %w", attPath, err)
 				}
@@ -372,7 +377,6 @@ Examples:
 
 			if draft {
 				var draftID string
-				var err error
 
 				if replyTo != "" {
 					// Create a threaded reply draft
@@ -1012,14 +1016,16 @@ By default, emails are imported to the Inbox and marked as unread.`,
 			targetMailboxID := mailbox
 			if targetMailboxID == "" {
 				// Default to inbox
-				inbox, err := client.GetMailboxByName(cmd.Context(), "inbox")
+				var inbox *jmap.Mailbox
+				inbox, err = client.GetMailboxByName(cmd.Context(), "inbox")
 				if err != nil {
 					return fmt.Errorf("failed to find inbox: %w", err)
 				}
 				targetMailboxID = inbox.ID
 			} else {
 				// Resolve mailbox name/ID
-				resolvedID, err := client.ResolveMailboxID(cmd.Context(), targetMailboxID)
+				var resolvedID string
+				resolvedID, err = client.ResolveMailboxID(cmd.Context(), targetMailboxID)
 				if err != nil {
 					return fmt.Errorf("invalid mailbox: %w", err)
 				}
@@ -1148,7 +1154,8 @@ in the current directory. You can get the blob ID from the 'attachments' command
 
 			// If output file not specified, get the attachment name from the email
 			if len(args) < 3 {
-				attachments, err := client.GetEmailAttachments(cmd.Context(), emailID)
+				var attachments []jmap.Attachment
+				attachments, err = client.GetEmailAttachments(cmd.Context(), emailID)
 				if err != nil {
 					return fmt.Errorf("failed to get attachments: %w", err)
 				}
@@ -1178,7 +1185,7 @@ in the current directory. You can get the blob ID from the 'attachments' command
 			outputFile = sanitizeFilename(outputFile)
 
 			// Check if file already exists
-			if _, err := os.Stat(outputFile); err == nil {
+			if _, statErr := os.Stat(outputFile); statErr == nil {
 				return fmt.Errorf("file '%s' already exists. Specify a different output file", outputFile)
 			}
 

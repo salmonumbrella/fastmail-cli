@@ -24,7 +24,7 @@ const (
 	SessionPath = "/jmap/session"
 
 	// Default retry configuration values
-	DefaultMaxRetries  = 3
+	DefaultMaxRetries   = 3
 	DefaultInitialDelay = 1 * time.Second
 	DefaultMaxDelay     = 30 * time.Second
 
@@ -154,9 +154,9 @@ var _ QuotaService = (*Client)(nil)
 // NewClient creates a new JMAP client with the provided API token
 func NewClient(token string) *Client {
 	return &Client{
-		token:          token,
-		baseURL:        DefaultBaseURL,
-		sessionTTL:     1 * time.Hour,
+		token:      token,
+		baseURL:    DefaultBaseURL,
+		sessionTTL: 1 * time.Hour,
 		http: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -168,9 +168,9 @@ func NewClient(token string) *Client {
 // NewClientWithBaseURL creates a new JMAP client with a custom base URL
 func NewClientWithBaseURL(token, baseURL string) *Client {
 	return &Client{
-		token:          token,
-		baseURL:        baseURL,
-		sessionTTL:     1 * time.Hour,
+		token:      token,
+		baseURL:    baseURL,
+		sessionTTL: 1 * time.Hour,
 		http: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -201,10 +201,10 @@ func isRetriableHTTPError(err error) bool {
 func isRetriableStatus(statusCode int) bool {
 	switch statusCode {
 	case http.StatusTooManyRequests, // 429
-		http.StatusInternalServerError,      // 500
-		http.StatusBadGateway,                // 502
-		http.StatusServiceUnavailable,        // 503
-		http.StatusGatewayTimeout:            // 504
+		http.StatusInternalServerError, // 500
+		http.StatusBadGateway,          // 502
+		http.StatusServiceUnavailable,  // 503
+		http.StatusGatewayTimeout:      // 504
 		return true
 	default:
 		return false
@@ -325,8 +325,8 @@ func (c *Client) GetSession(ctx context.Context) (*Session, error) {
 
 		// Check response status
 		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			body, _ := io.ReadAll(resp.Body) //nolint:errcheck // best-effort read for error message
+			_ = resp.Body.Close()
 
 			// Record failure for 5xx errors (server errors)
 			if resp.StatusCode >= 500 && resp.StatusCode < 600 {
@@ -358,7 +358,7 @@ func (c *Client) GetSession(ctx context.Context) (*Session, error) {
 		}
 
 		// Success - parse session response
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		var sessionData struct {
 			APIUrl       string                    `json:"apiUrl"`
@@ -480,8 +480,8 @@ func (c *Client) MakeRequest(ctx context.Context, req *Request) (*Response, erro
 
 		// Check response status
 		if httpResp.StatusCode != http.StatusOK {
-			bodyBytes, _ := io.ReadAll(httpResp.Body)
-			httpResp.Body.Close()
+			bodyBytes, _ := io.ReadAll(httpResp.Body) //nolint:errcheck // best-effort read for error message
+			_ = httpResp.Body.Close()
 
 			// Record failure for 5xx errors (server errors)
 			if httpResp.StatusCode >= 500 && httpResp.StatusCode < 600 {
@@ -513,7 +513,7 @@ func (c *Client) MakeRequest(ctx context.Context, req *Request) (*Response, erro
 		}
 
 		// Success - parse response
-		defer httpResp.Body.Close()
+		defer func() { _ = httpResp.Body.Close() }()
 
 		var response Response
 		if err := json.NewDecoder(httpResp.Body).Decode(&response); err != nil {
@@ -599,7 +599,7 @@ func (c *Client) DownloadBlob(ctx context.Context, blobID string) (io.ReadCloser
 
 		// Check response status
 		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 
 			// Check if status is retriable
 			if !isRetriableStatus(resp.StatusCode) {
@@ -697,11 +697,11 @@ func (c *Client) UploadBlob(ctx context.Context, reader io.Reader, contentType s
 		}
 
 		// Defer closing the response body immediately after successful request
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		// Check response status (201 Created is success for uploads)
 		if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body) //nolint:errcheck // best-effort read for error message
 
 			if !isRetriableStatus(resp.StatusCode) {
 				return nil, fmt.Errorf("upload failed with status %d: %s", resp.StatusCode, string(body))
@@ -732,4 +732,3 @@ func (c *Client) UploadBlob(ctx context.Context, reader io.Reader, contentType s
 
 	return nil, fmt.Errorf("upload failed after %d retries: %w", c.retry.MaxRetries, lastErr)
 }
-
