@@ -613,13 +613,14 @@ func newEmailBulkMoveCmd(flags *rootFlags) *cobra.Command {
 		Short: "Move multiple emails to a mailbox",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate required flags before accessing keyring
+			if targetMailbox == "" {
+				return fmt.Errorf("--to is required")
+			}
+
 			client, err := getClient(flags)
 			if err != nil {
 				return err
-			}
-
-			if targetMailbox == "" {
-				return fmt.Errorf("--to is required")
 			}
 
 			// Resolve target mailbox ID or name
