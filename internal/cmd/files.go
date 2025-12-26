@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"path"
@@ -63,7 +62,7 @@ Use --recursive to list all files recursively.`,
 			}
 
 			if recursive {
-				return listRecursive(cmd.Context(), client, path)
+				return listRecursive(cmd, client, path)
 			}
 
 			files, err := client.List(cmd.Context(), path)
@@ -81,7 +80,7 @@ Use --recursive to list all files recursively.`,
 			})
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(files)
+				return printJSON(cmd, files)
 			}
 
 			if len(files) == 0 {
@@ -346,12 +345,13 @@ func getWebDAVClient(flags *rootFlags) (*webdav.Client, error) {
 }
 
 // listRecursive lists files recursively
-func listRecursive(ctx context.Context, client *webdav.Client, rootPath string) error {
+func listRecursive(cmd *cobra.Command, client *webdav.Client, rootPath string) error {
 	type pathInfo struct {
 		path  string
 		depth int
 	}
 
+	ctx := cmd.Context()
 	visited := make(map[string]bool)
 	queue := []pathInfo{{path: rootPath, depth: 0}}
 	var allFiles []struct {
@@ -396,7 +396,7 @@ func listRecursive(ctx context.Context, client *webdav.Client, rootPath string) 
 		for i, f := range allFiles {
 			files[i] = f.file
 		}
-		return outfmt.PrintJSON(files)
+		return printJSON(cmd, files)
 	}
 
 	if len(allFiles) == 0 {

@@ -162,6 +162,11 @@ func getQuery(ctx context.Context) string {
 	return query
 }
 
+// printJSON prints v as JSON, applying any --query filter from the command context.
+func printJSON(cmd *cobra.Command, v any) error {
+	return outfmt.PrintJSONFiltered(v, getQuery(cmd.Context()))
+}
+
 // getClient creates a JMAP client for the configured account.
 // It retrieves the account from flags (or FASTMAIL_ACCOUNT env var)
 // and fetches the API token from the keychain.

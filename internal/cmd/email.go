@@ -83,7 +83,7 @@ func newEmailListCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSONFiltered(emails, getQuery(cmd.Context()))
+				return printJSON(cmd, emails)
 			}
 
 			if len(emails) == 0 {
@@ -162,7 +162,7 @@ Examples:
 				if snippets && len(searchSnippets) > 0 {
 					result["snippets"] = searchSnippets
 				}
-				return outfmt.PrintJSON(result)
+				return printJSON(cmd, result)
 			}
 
 			if len(emails) == 0 {
@@ -241,7 +241,7 @@ func newEmailGetCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(email)
+				return printJSON(cmd, email)
 			}
 
 			// Text output
@@ -387,7 +387,7 @@ Examples:
 				}
 
 				if isJSON(cmd.Context()) {
-					return outfmt.PrintJSON(map[string]any{
+					return printJSON(cmd, map[string]any{
 						"draftId": draftID,
 						"status":  "draft",
 						"replyTo": replyTo,
@@ -409,7 +409,7 @@ Examples:
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"submissionId": submissionID,
 					"status":       "sent",
 				})
@@ -451,7 +451,7 @@ func newEmailDeleteCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"deleted": args[0],
 				})
 			}
@@ -481,7 +481,7 @@ func newEmailBulkDeleteCmd(flags *rootFlags) *cobra.Command {
 			// Handle dry-run mode
 			if dryRun {
 				if isJSON(cmd.Context()) {
-					return outfmt.PrintJSON(map[string]any{
+					return printJSON(cmd, map[string]any{
 						"dryRun":      true,
 						"wouldDelete": args,
 					})
@@ -525,7 +525,7 @@ func newEmailBulkDeleteCmd(flags *rootFlags) *cobra.Command {
 				if len(results.Failed) > 0 {
 					output["failed"] = results.Failed
 				}
-				return outfmt.PrintJSON(output)
+				return printJSON(cmd, output)
 			}
 
 			// Handle text output
@@ -583,7 +583,7 @@ func newEmailMoveCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"moved":   args[0],
 					"mailbox": targetMailbox,
 				})
@@ -644,7 +644,7 @@ func newEmailBulkMoveCmd(flags *rootFlags) *cobra.Command {
 			// Handle dry-run mode
 			if dryRun {
 				if isJSON(cmd.Context()) {
-					return outfmt.PrintJSON(map[string]any{
+					return printJSON(cmd, map[string]any{
 						"dryRun":    true,
 						"mailbox":   mailboxName,
 						"wouldMove": args,
@@ -690,7 +690,7 @@ func newEmailBulkMoveCmd(flags *rootFlags) *cobra.Command {
 				if len(results.Failed) > 0 {
 					output["failed"] = results.Failed
 				}
-				return outfmt.PrintJSON(output)
+				return printJSON(cmd, output)
 			}
 
 			// Handle text output
@@ -743,7 +743,7 @@ func newEmailMarkReadCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"emailId": args[0],
 					"status":  status,
 				})
@@ -781,7 +781,7 @@ func newEmailBulkMarkReadCmd(flags *rootFlags) *cobra.Command {
 			// Handle dry-run mode
 			if dryRun {
 				if isJSON(cmd.Context()) {
-					return outfmt.PrintJSON(map[string]any{
+					return printJSON(cmd, map[string]any{
 						"dryRun":    true,
 						"status":    status,
 						"wouldMark": args,
@@ -814,7 +814,7 @@ func newEmailBulkMarkReadCmd(flags *rootFlags) *cobra.Command {
 				if len(results.Failed) > 0 {
 					output["failed"] = results.Failed
 				}
-				return outfmt.PrintJSON(output)
+				return printJSON(cmd, output)
 			}
 
 			// Handle text output
@@ -859,7 +859,7 @@ func newEmailThreadCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"threadId": args[0],
 					"emails":   emails,
 				})
@@ -910,7 +910,7 @@ func newEmailAttachmentsCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"emailId":     args[0],
 					"attachments": attachments,
 				})
@@ -956,7 +956,7 @@ func newEmailMailboxesCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(mailboxes)
+				return printJSON(cmd, mailboxes)
 			}
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
@@ -1058,7 +1058,7 @@ By default, emails are imported to the Inbox and marked as unread.`,
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"emailId":   emailID,
 					"blobId":    uploadResult.BlobID,
 					"mailboxId": targetMailboxID,
@@ -1207,7 +1207,7 @@ in the current directory. You can get the blob ID from the 'attachments' command
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"emailId":    emailID,
 					"blobId":     blobID,
 					"outputFile": outputFile,
@@ -1399,7 +1399,7 @@ func newMailboxCreateCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(mailbox)
+				return printJSON(cmd, mailbox)
 			}
 
 			fmt.Printf("Created mailbox '%s' (ID: %s)\n", mailbox.Name, mailbox.ID)
@@ -1466,7 +1466,7 @@ func newMailboxDeleteCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"deleted": mailboxID,
 				})
 			}
@@ -1504,7 +1504,7 @@ func newMailboxRenameCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"mailboxId": mailboxID,
 					"newName":   args[1],
 				})
@@ -1539,7 +1539,7 @@ func newEmailIdentitiesCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(identities)
+				return printJSON(cmd, identities)
 			}
 
 			if len(identities) == 0 {

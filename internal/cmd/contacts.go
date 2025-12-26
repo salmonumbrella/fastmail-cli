@@ -63,7 +63,7 @@ Optionally filter by address book ID and limit the number of results.`,
 			})
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(contacts)
+				return printJSON(cmd, contacts)
 			}
 
 			if len(contacts) == 0 {
@@ -125,7 +125,7 @@ func newContactsGetCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(contact)
+				return printJSON(cmd, contact)
 			}
 
 			fmt.Printf("ID:       %s\n", contact.ID)
@@ -248,7 +248,7 @@ At minimum, you must provide a name. Other fields are optional.`,
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(created)
+				return printJSON(cmd, created)
 			}
 
 			fmt.Printf("Created contact: %s (ID: %s)\n", created.Name, created.ID)
@@ -327,7 +327,7 @@ Only the fields you specify will be updated.`,
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(updated)
+				return printJSON(cmd, updated)
 			}
 
 			fmt.Printf("Updated contact: %s\n", updated.Name)
@@ -415,7 +415,7 @@ The query is matched against contact names, emails, and other fields.`,
 			})
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(contacts)
+				return printJSON(cmd, contacts)
 			}
 
 			if len(contacts) == 0 {
@@ -475,7 +475,7 @@ func newContactsAddressBooksCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(addressBooks)
+				return printJSON(cmd, addressBooks)
 			}
 
 			if len(addressBooks) == 0 {

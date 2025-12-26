@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/salmonumbrella/fastmail-cli/internal/jmap"
-	"github.com/salmonumbrella/fastmail-cli/internal/outfmt"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +40,7 @@ func newVacationGetCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(vr)
+				return printJSON(cmd, vr)
 			}
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
@@ -131,7 +130,7 @@ Examples:
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"status":  "updated",
 					"enabled": enable,
 				})
@@ -172,7 +171,7 @@ func newVacationDisableCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"status":  "disabled",
 					"enabled": false,
 				})

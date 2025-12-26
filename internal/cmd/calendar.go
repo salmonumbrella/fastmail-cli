@@ -62,7 +62,7 @@ func newCalendarListCmd(flags *rootFlags) *cobra.Command {
 			})
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(calendars)
+				return printJSON(cmd, calendars)
 			}
 
 			if len(calendars) == 0 {
@@ -149,7 +149,7 @@ Dates should be in RFC3339 format (e.g., 2025-12-19T00:00:00Z) or YYYY-MM-DD.`,
 			})
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(events)
+				return printJSON(cmd, events)
 			}
 
 			if len(events) == 0 {
@@ -204,7 +204,7 @@ func newCalendarEventGetCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(event)
+				return printJSON(cmd, event)
 			}
 
 			fmt.Printf("ID:         %s\n", event.ID)
@@ -335,7 +335,7 @@ Dates should be in RFC3339 format (e.g., 2025-12-19T15:00:00Z) or YYYY-MM-DD for
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(created)
+				return printJSON(cmd, created)
 			}
 
 			fmt.Printf("Created event: %s (ID: %s)\n", created.Title, created.ID)
@@ -425,7 +425,7 @@ Only the fields you specify will be updated.`,
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(updated)
+				return printJSON(cmd, updated)
 			}
 
 			fmt.Printf("Updated event: %s\n", updated.Title)
@@ -585,8 +585,8 @@ Times can be in RFC3339 format (2025-12-19T15:00:00Z) or simplified format (2025
 			var attendeeList []caldav.Attendee
 			for _, email := range attendees {
 				attendeeList = append(attendeeList, caldav.Attendee{
-					Email: email,
-					RSVP:  true,
+					Email:  email,
+					RSVP:   true,
 					Status: "NEEDS-ACTION",
 				})
 			}
@@ -613,7 +613,7 @@ Times can be in RFC3339 format (2025-12-19T15:00:00Z) or simplified format (2025
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]interface{}{
+				return printJSON(cmd, map[string]interface{}{
 					"uid":       uid,
 					"title":     title,
 					"start":     start,

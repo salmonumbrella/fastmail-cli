@@ -8,7 +8,6 @@ import (
 	"text/tabwriter"
 
 	"github.com/salmonumbrella/fastmail-cli/internal/jmap"
-	"github.com/salmonumbrella/fastmail-cli/internal/outfmt"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +39,7 @@ Examples:
 
 			if len(quotas) == 0 {
 				if isJSON(cmd.Context()) {
-					return outfmt.PrintJSON([]any{})
+					return printJSON(cmd, []any{})
 				}
 				fmt.Println("No quota information available")
 				return nil
@@ -48,7 +47,7 @@ Examples:
 
 			// JSON output
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(quotas)
+				return printJSON(cmd, quotas)
 			}
 
 			// Human-readable output

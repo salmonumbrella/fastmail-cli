@@ -85,7 +85,7 @@ With a domain, lists only aliases for that domain.`,
 			})
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(aliases)
+				return printJSON(cmd, aliases)
 			}
 
 			if len(aliases) == 0 {
@@ -173,7 +173,7 @@ The domain is normalized (paths and ports are stripped).`,
 				best := selectBestAlias(existing)
 
 				if isJSON(cmd.Context()) {
-					return outfmt.PrintJSON(map[string]any{
+					return printJSON(cmd, map[string]any{
 						"alias":   best,
 						"created": false,
 					})
@@ -196,7 +196,7 @@ The domain is normalized (paths and ports are stripped).`,
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"alias":   alias,
 					"created": true,
 				})
@@ -232,7 +232,7 @@ func newMaskedGetCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(alias)
+				return printJSON(cmd, alias)
 			}
 
 			fmt.Printf("Email:       %s\n", alias.Email)
@@ -395,7 +395,7 @@ func newMaskedDescriptionCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if isJSON(cmd.Context()) {
-				return outfmt.PrintJSON(map[string]any{
+				return printJSON(cmd, map[string]any{
 					"email":       email,
 					"description": description,
 					"updated":     true,
@@ -435,7 +435,7 @@ func updateMaskedEmailState(cmd *cobra.Command, flags *rootFlags, email string, 
 
 	if dryRun {
 		if isJSON(cmd.Context()) {
-			return outfmt.PrintJSON(map[string]any{
+			return printJSON(cmd, map[string]any{
 				"dry_run":       true,
 				"email":         email,
 				"current_state": alias.State,
@@ -452,7 +452,7 @@ func updateMaskedEmailState(cmd *cobra.Command, flags *rootFlags, email string, 
 	}
 
 	if isJSON(cmd.Context()) {
-		return outfmt.PrintJSON(map[string]any{
+		return printJSON(cmd, map[string]any{
 			"email": email,
 			"state": state,
 		})
@@ -503,7 +503,7 @@ func bulkUpdateMaskedEmailState(cmd *cobra.Command, flags *rootFlags, domain str
 					"new_state":     state,
 				}
 			}
-			return outfmt.PrintJSON(map[string]any{
+			return printJSON(cmd, map[string]any{
 				"dry_run": true,
 				"domain":  domain,
 				"count":   len(toUpdate),
@@ -533,7 +533,7 @@ func bulkUpdateMaskedEmailState(cmd *cobra.Command, flags *rootFlags, domain str
 	}
 
 	if isJSON(cmd.Context()) {
-		return outfmt.PrintJSON(map[string]any{
+		return printJSON(cmd, map[string]any{
 			"domain":    domain,
 			"state":     state,
 			"succeeded": succeeded,
@@ -597,4 +597,3 @@ func selectBestAlias(aliases []jmap.MaskedEmail) *jmap.MaskedEmail {
 
 	return best
 }
-
