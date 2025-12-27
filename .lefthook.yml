@@ -1,18 +1,36 @@
+# lefthook.yml
+# Pre-commit and pre-push hooks for fastmail-cli
+
 pre-commit:
   parallel: true
   commands:
-    fmt-check:
-      glob: "*.go"
-      run: gofmt -l . | grep . && echo "Run 'gofmt -w .' to fix" && exit 1 || exit 0
     lint:
       glob: "*.go"
-      run: golangci-lint run --timeout 2m
+      run: golangci-lint run --new-from-rev=HEAD~1
+      stage_fixed: true
+
     build:
       glob: "*.go"
-      run: go build ./...
+      run: go build ./cmd/fastmail
+
+    fmt-check:
+      glob: "*.go"
+      run: |
+        if ! gofmt -l . | grep -q .; then
+          exit 0
+        else
+          echo "Run 'gofmt -w .' to fix formatting"
+          gofmt -l .
+          exit 1
+        fi
 
 pre-push:
   parallel: true
   commands:
+    lint-full:
+      glob: "*.go"
+      run: golangci-lint run
+
     test:
+      glob: "*.go"
       run: go test ./...
