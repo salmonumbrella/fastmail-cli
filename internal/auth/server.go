@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"net"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -44,16 +45,22 @@ func NewSetupServer() *SetupServer {
 }
 
 // generateCSRFToken creates a random CSRF token
-func generateCSRFToken() string {
+func generateCSRFToken() (string, error) {
 	b := make([]byte, 32)
-	_, _ = rand.Read(b) //nolint:errcheck // crypto/rand.Read always returns len(b), nil
-	return hex.EncodeToString(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("failed to generate CSRF token: %w", err)
+	}
+	return hex.EncodeToString(b), nil
 }
 
 // Start starts the setup server and opens the browser
 func (s *SetupServer) Start(ctx context.Context) (*SetupResult, error) {
 	// Generate CSRF token
-	s.csrfToken = generateCSRFToken()
+	csrfToken, err := generateCSRFToken()
+	if err != nil {
+		return nil, err
+	}
+	s.csrfToken = csrfToken
 
 	// Find an available port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -371,17 +378,34 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 	_ = json.NewEncoder(w).Encode(data) //nolint:errcheck // best-effort JSON encode
 }
 
-func openBrowser(url string) error {
+func openBrowser(rawURL string) error {
+	// Security: Validate URL before passing to exec.Command
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// Only allow localhost URLs to prevent command injection
+	host := parsedURL.Hostname()
+	if host != "127.0.0.1" && host != "localhost" {
+		return fmt.Errorf("refusing to open non-localhost URL: %s", host)
+	}
+
+	// Validate scheme
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("invalid URL scheme: %s", parsedURL.Scheme)
+	}
+
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.Command("open", rawURL)
 	case "linux":
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.Command("xdg-open", rawURL)
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL)
 	default:
-		return fmt.Errorf("unsupported platform")
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
 	return cmd.Start()
 }
