@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -151,15 +154,25 @@ var _ MaskedEmailService = (*Client)(nil)
 var _ VacationService = (*Client)(nil)
 var _ QuotaService = (*Client)(nil)
 
+// newSecureHTTPClient creates an HTTP client with secure TLS configuration
+func newSecureHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			},
+		},
+	}
+}
+
 // NewClient creates a new JMAP client with the provided API token
 func NewClient(token string) *Client {
 	return &Client{
-		token:      token,
-		baseURL:    DefaultBaseURL,
-		sessionTTL: 1 * time.Hour,
-		http: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		token:          token,
+		baseURL:        DefaultBaseURL,
+		sessionTTL:     1 * time.Hour,
+		http:           newSecureHTTPClient(),
 		retry:          DefaultRetryConfig(),
 		circuitBreaker: newCircuitBreaker(),
 	}
@@ -168,12 +181,10 @@ func NewClient(token string) *Client {
 // NewClientWithBaseURL creates a new JMAP client with a custom base URL
 func NewClientWithBaseURL(token, baseURL string) *Client {
 	return &Client{
-		token:      token,
-		baseURL:    baseURL,
-		sessionTTL: 1 * time.Hour,
-		http: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		token:          token,
+		baseURL:        baseURL,
+		sessionTTL:     1 * time.Hour,
+		http:           newSecureHTTPClient(),
 		retry:          DefaultRetryConfig(),
 		circuitBreaker: newCircuitBreaker(),
 	}
@@ -298,9 +309,10 @@ func (c *Client) GetSession(ctx context.Context) (*Session, error) {
 			return nil, fmt.Errorf("creating session request: %w", err)
 		}
 
-		// Add authorization header
+		// Add headers
 		req.Header.Set("Authorization", "Bearer "+c.token)
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Request-ID", uuid.New().String())
 
 		// Execute request
 		resp, err = c.http.Do(req)
@@ -333,8 +345,18 @@ func (c *Client) GetSession(ctx context.Context) (*Session, error) {
 				c.circuitBreaker.recordFailure()
 			}
 
-			// Check for 429 rate limiting
+			// Check for 429 rate limiting - retry with backoff
 			if resp.StatusCode == http.StatusTooManyRequests {
+				if attempt < c.retry.MaxRetries {
+					delay := c.getRetryDelay(attempt, resp)
+					select {
+					case <-time.After(delay):
+						continue
+					case <-ctx.Done():
+						return nil, fmt.Errorf("context cancelled during rate limit retry: %w", ctx.Err())
+					}
+				}
+				// All retries exhausted
 				retryAfter := c.getRetryDelay(attempt, resp)
 				return nil, &RateLimitError{RetryAfter: retryAfter}
 			}
@@ -451,6 +473,7 @@ func (c *Client) MakeRequest(ctx context.Context, req *Request) (*Response, erro
 		// Add headers
 		httpReq.Header.Set("Authorization", "Bearer "+c.token)
 		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("X-Request-ID", uuid.New().String())
 
 		// Add idempotency key for write operations
 		if idempotencyKey != "" {
@@ -488,8 +511,18 @@ func (c *Client) MakeRequest(ctx context.Context, req *Request) (*Response, erro
 				c.circuitBreaker.recordFailure()
 			}
 
-			// Check for 429 rate limiting
+			// Check for 429 rate limiting - retry with backoff
 			if httpResp.StatusCode == http.StatusTooManyRequests {
+				if attempt < c.retry.MaxRetries {
+					delay := c.getRetryDelay(attempt, httpResp)
+					select {
+					case <-time.After(delay):
+						continue
+					case <-ctx.Done():
+						return nil, fmt.Errorf("context cancelled during rate limit retry: %w", ctx.Err())
+					}
+				}
+				// All retries exhausted
 				retryAfter := c.getRetryDelay(attempt, httpResp)
 				return nil, &RateLimitError{RetryAfter: retryAfter}
 			}
@@ -576,8 +609,9 @@ func (c *Client) DownloadBlob(ctx context.Context, blobID string) (io.ReadCloser
 			return nil, fmt.Errorf("creating download request: %w", err)
 		}
 
-		// Add authorization header
+		// Add headers
 		req.Header.Set("Authorization", "Bearer "+c.token)
+		req.Header.Set("X-Request-ID", uuid.New().String())
 
 		// Execute request
 		resp, err = c.http.Do(req)
@@ -679,6 +713,7 @@ func (c *Client) UploadBlob(ctx context.Context, reader io.Reader, contentType s
 
 		req.Header.Set("Authorization", "Bearer "+c.token)
 		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("X-Request-ID", uuid.New().String())
 
 		resp, err = c.http.Do(req)
 		if err != nil {

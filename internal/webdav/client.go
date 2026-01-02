@@ -3,6 +3,7 @@ package webdav
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -67,34 +68,70 @@ type resourceType struct {
 	Collection *struct{} `xml:"collection"`
 }
 
+// newSecureHTTPClient creates an HTTP client with secure TLS configuration
+func newSecureHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			},
+		},
+	}
+}
+
 // NewClient creates a new WebDAV client with the provided API token
 func NewClient(token string) *Client {
 	return &Client{
-		baseURL: DefaultBaseURL,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		token: token,
+		baseURL:    DefaultBaseURL,
+		httpClient: newSecureHTTPClient(),
+		token:      token,
 	}
 }
 
 // NewClientWithBaseURL creates a new WebDAV client with a custom base URL
 func NewClientWithBaseURL(token, baseURL string) *Client {
 	return &Client{
-		baseURL: baseURL,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		token: token,
+		baseURL:    baseURL,
+		httpClient: newSecureHTTPClient(),
+		token:      token,
 	}
+}
+
+// validateRemotePath validates and cleans a remote path to prevent traversal attacks.
+// It ensures the path starts with / and doesn't contain parent directory references.
+func validateRemotePath(remotePath string) (string, error) {
+	// Ensure path starts with /
+	if !strings.HasPrefix(remotePath, "/") {
+		remotePath = "/" + remotePath
+	}
+
+	// Explicit check for .. patterns to prevent path traversal attacks
+	if strings.Contains(remotePath, "..") {
+		return "", fmt.Errorf("invalid path: parent directory reference not allowed")
+	}
+
+	// Clean the path to resolve . components
+	cleaned := path.Clean(remotePath)
+
+	// Ensure cleaned path still starts with / (prevents traversal above root)
+	if !strings.HasPrefix(cleaned, "/") {
+		return "", fmt.Errorf("invalid path: traversal attempt detected")
+	}
+
+	return cleaned, nil
 }
 
 // List lists files and directories at the specified path
 func (c *Client) List(ctx context.Context, filePath string) ([]FileInfo, error) {
-	// Normalize path
-	if !strings.HasPrefix(filePath, "/") {
-		filePath = "/" + filePath
+	// Validate and normalize path
+	validPath, err := validateRemotePath(filePath)
+	if err != nil {
+		return nil, err
 	}
+	filePath = validPath
+
+	// Ensure trailing slash for directory listing
 	if !strings.HasSuffix(filePath, "/") && filePath != "/" {
 		filePath = filePath + "/"
 	}
@@ -174,6 +211,13 @@ func (c *Client) List(ctx context.Context, filePath string) ([]FileInfo, error) 
 
 // Upload uploads a local file to the remote path
 func (c *Client) Upload(ctx context.Context, localPath, remotePath string) error {
+	// Validate remote path
+	validPath, err := validateRemotePath(remotePath)
+	if err != nil {
+		return err
+	}
+	remotePath = validPath
+
 	// Open local file
 	file, err := os.Open(localPath)
 	if err != nil {
@@ -185,11 +229,6 @@ func (c *Client) Upload(ctx context.Context, localPath, remotePath string) error
 	stat, err := file.Stat()
 	if err != nil {
 		return fmt.Errorf("getting file info: %w", err)
-	}
-
-	// Normalize remote path
-	if !strings.HasPrefix(remotePath, "/") {
-		remotePath = "/" + remotePath
 	}
 
 	url := c.baseURL + remotePath
@@ -218,10 +257,12 @@ func (c *Client) Upload(ctx context.Context, localPath, remotePath string) error
 
 // Download downloads a remote file to the local path
 func (c *Client) Download(ctx context.Context, remotePath, localPath string) error {
-	// Normalize remote path
-	if !strings.HasPrefix(remotePath, "/") {
-		remotePath = "/" + remotePath
+	// Validate remote path
+	validPath, err := validateRemotePath(remotePath)
+	if err != nil {
+		return err
 	}
+	remotePath = validPath
 
 	url := c.baseURL + remotePath
 
@@ -260,10 +301,14 @@ func (c *Client) Download(ctx context.Context, remotePath, localPath string) err
 
 // Mkdir creates a directory at the specified path
 func (c *Client) Mkdir(ctx context.Context, dirPath string) error {
-	// Normalize path
-	if !strings.HasPrefix(dirPath, "/") {
-		dirPath = "/" + dirPath
+	// Validate path
+	validPath, err := validateRemotePath(dirPath)
+	if err != nil {
+		return err
 	}
+	dirPath = validPath
+
+	// Ensure trailing slash for directory
 	if !strings.HasSuffix(dirPath, "/") {
 		dirPath = dirPath + "/"
 	}
@@ -297,10 +342,12 @@ func (c *Client) Mkdir(ctx context.Context, dirPath string) error {
 
 // Delete deletes a file or directory at the specified path
 func (c *Client) Delete(ctx context.Context, filePath string) error {
-	// Normalize path
-	if !strings.HasPrefix(filePath, "/") {
-		filePath = "/" + filePath
+	// Validate path
+	validPath, err := validateRemotePath(filePath)
+	if err != nil {
+		return err
 	}
+	filePath = validPath
 
 	url := c.baseURL + filePath
 
@@ -330,13 +377,19 @@ func (c *Client) Delete(ctx context.Context, filePath string) error {
 
 // Move moves or renames a file or directory
 func (c *Client) Move(ctx context.Context, source, destination string) error {
-	// Normalize paths
-	if !strings.HasPrefix(source, "/") {
-		source = "/" + source
+	// Validate source path
+	validSource, err := validateRemotePath(source)
+	if err != nil {
+		return fmt.Errorf("invalid source path: %w", err)
 	}
-	if !strings.HasPrefix(destination, "/") {
-		destination = "/" + destination
+	source = validSource
+
+	// Validate destination path
+	validDest, err := validateRemotePath(destination)
+	if err != nil {
+		return fmt.Errorf("invalid destination path: %w", err)
 	}
+	destination = validDest
 
 	sourceURL := c.baseURL + source
 	destinationURL := c.baseURL + destination

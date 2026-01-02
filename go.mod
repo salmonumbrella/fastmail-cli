@@ -4,6 +4,7 @@ go 1.25.5
 
 require (
 	github.com/99designs/keyring v1.2.2
+	github.com/google/uuid v1.6.0
 	github.com/itchyny/gojq v0.12.18
 	github.com/muesli/termenv v0.16.0
 	github.com/spf13/cobra v1.8.1
