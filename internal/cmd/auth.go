@@ -88,8 +88,13 @@ func newAuthAddCmd() *cobra.Command {
 			var token string
 
 			if tokenFlag != "" {
-				// Use token from flag
+				// Security warning: --token flag exposes token in shell history and process listings
+				fmt.Fprintln(os.Stderr, "Warning: Using --token flag exposes your token in shell history and process listings.")
+				fmt.Fprintln(os.Stderr, "Consider using FASTMAIL_TOKEN environment variable or interactive prompt instead.")
 				token = strings.TrimSpace(tokenFlag)
+			} else if envToken := os.Getenv("FASTMAIL_TOKEN"); envToken != "" {
+				// Use token from environment variable (secure scripting method)
+				token = strings.TrimSpace(envToken)
 			} else {
 				// Prompt for API token securely
 				fmt.Fprintf(os.Stderr, "Enter API token for %s: ", email)
@@ -122,7 +127,7 @@ func newAuthAddCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&tokenFlag, "token", "", "API token (alternative to interactive prompt)")
+	cmd.Flags().StringVar(&tokenFlag, "token", "", "API token (deprecated: use FASTMAIL_TOKEN env var instead)")
 
 	return cmd
 }

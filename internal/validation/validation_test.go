@@ -51,9 +51,9 @@ func TestEmail(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "invalid - no TLD",
+			name:    "valid - no TLD (RFC 5322 allows this, e.g., user@localhost)",
 			email:   "user@example",
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name:    "invalid - spaces",
