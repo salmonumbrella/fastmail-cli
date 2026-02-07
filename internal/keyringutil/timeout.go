@@ -8,7 +8,7 @@ import (
 	cerrors "github.com/salmonumbrella/fastmail-cli/internal/errors"
 )
 
-const DefaultTimeout = 5 * time.Second
+const DefaultTimeout = 30 * time.Second
 
 type TimeoutError struct {
 	Operation string
