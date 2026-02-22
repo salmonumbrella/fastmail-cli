@@ -1,0 +1,53 @@
+# .golangci.yml
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - unparam
+    - gosec
+  settings:
+    errcheck:
+      check-blank: false
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
+        - fmt.Scanln
+        - (*text/tabwriter.Writer).Flush
+        - (*os.File).Close
+        - (io.ReadCloser).Close
+    govet:
+      enable:
+        - shadow
+    gosec:
+      excludes:
+        - G104 # Duplicates errcheck
+        - G115 # Integer overflow on small bounded values (retry count)
+        - G117 # Exported field matches secret pattern (APIToken in config struct)
+        - G204 # Subprocess with variable (opening URLs in browser)
+        - G304 # File path from variable (expected in CLI)
+        - G306 # WriteFile permissions (test files only)
+        - G404 # Weak random for jitter timing (not security-critical)
+        - G703 # Path traversal via taint (reading user-specified temp files)
+        - G704 # SSRF via taint (HTTP calls to configured JMAP server)
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+
+run:
+  timeout: 5m
+  tests: true
+
+issues:
+  max-same-issues: 0

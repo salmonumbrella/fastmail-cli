@@ -1,0 +1,19 @@
+{
+  "name": "gog-email-tracker",
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.27.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "build": "wrangler deploy --dry-run",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260108.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16",
+    "wrangler": "^4.57.0"
+  }
+}

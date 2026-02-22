@@ -1,0 +1,13 @@
+name = "email-tracker"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "email-tracker"
+database_id = "placeholder-replace-after-d1-create"
+
+[[kv_namespaces]]
+binding = "RATE_KV"
+id = "placeholder-rate-limit-kv"
+preview_id = "placeholder-rate-limit-kv-preview"

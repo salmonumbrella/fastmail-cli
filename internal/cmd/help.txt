@@ -1,0 +1,176 @@
+fastmail - CLI for Fastmail email, masked email, and calendar
+
+IMPORTANT: Always use the shortest alias. Full names waste tokens.
+
+Aliases (resource -> short):
+  email=mail=msg  masked=mask=alias  contacts=contact  calendar=cal
+  vacation=vr  files=file  draft=drafts  quota=storage=usage
+
+Aliases (shortcut -> short):
+  search=find  list=ls  get=show=cat  send=compose=new  thread=t
+  mailboxes=folders
+
+Aliases (subcommand -> short):
+  list=ls  search=s=find  get=show=cat  delete=rm=trash
+  forward=fwd  attachments=att  download=dl  mark-read=read=seen
+  thread=t  bulk-delete=bulk-rm  bulk-move=bulk-mv
+  bulk-mark-read=bulk-read  send=submit(draft)
+
+Reading email:
+  fastmail list --limit 10               List recent emails
+  fastmail list --mailbox Archive --li   Emails in mailbox (light)
+  fastmail get ID --li                   Get email by ID (light)
+  fastmail search "query" --li           Search emails (light)
+  fastmail search "from:alice" --li      Search by sender
+  fastmail search "subject:meeting after:yesterday" --li
+  fastmail thread THREAD_ID --li         All emails in thread (light)
+  fastmail email attachments ID          List attachments
+
+Sending email:
+  fastmail send --to a@b.com --subject "Hi" --body "text"
+  fastmail send --to a@b.com --subject "R" --body "..." --attach file.pdf
+  fastmail send --from alias@fastmail.com --to a@b.com --subject "Re" --body "..."
+  fastmail email forward ID --to a@b.com Forward with attachments
+  fastmail email forward ID --to a@b.com --body "FYI"
+
+Email actions:
+  fastmail email delete ID               Move to trash
+  fastmail email move ID --to Archive    Move to mailbox
+  fastmail email mark-read ID            Mark as read
+  fastmail email mark-read ID --unread   Mark as unread
+  fastmail email import file.eml         Import .eml file
+
+Bulk operations:
+  fastmail email bulk-delete ID1 ID2     Bulk delete
+  fastmail email bulk-move --to Inbox ID1 ID2  Bulk move
+  fastmail email bulk-mark-read ID1 ID2  Bulk mark read
+  fastmail email bulk-mark-read --unread ID1 ID2
+
+Mailbox management:
+  fastmail mailboxes                     List all mailboxes
+  fastmail email mailbox-create "Name"   Create mailbox
+  fastmail email mailbox-delete ID       Delete mailbox
+  fastmail email mailbox-rename ID "New" Rename mailbox
+
+Masked email:
+  fastmail masked list                   List all aliases
+  fastmail masked list example.com       Aliases for domain
+  fastmail masked create example.com     Create alias (or get existing)
+  fastmail masked create example.com "Shopping"
+  fastmail masked get user.1234@fastmail.com
+  fastmail masked enable user.1234@fastmail.com
+  fastmail masked disable user.1234@fastmail.com
+  fastmail masked delete user.1234@fastmail.com
+  fastmail masked enable --domain example.com   Bulk enable
+  fastmail masked disable --domain example.com  Bulk disable
+  fastmail masked description EMAIL "new desc"  Update description
+
+Contacts:
+  fastmail contacts list --li            List contacts (light)
+  fastmail contacts get ID --li          Get contact by ID (light)
+  fastmail contacts search "query" --li  Search contacts (light)
+  fastmail contacts create --name "John" --email "j@b.com"
+  fastmail contacts update ID --name "Jane"
+  fastmail contacts delete ID
+  fastmail contacts addressbooks         List address books
+
+Calendar:
+  fastmail cal list                      List calendars
+  fastmail cal events --li               List events (light)
+  fastmail cal events --from 2025-01-01 --to 2025-12-31 --li
+  fastmail cal event-get ID --li         Get event details (light)
+  fastmail cal event-create --calendar ID --title "Meeting" --start "2025-12-19T15:00:00Z" --end "2025-12-19T16:00:00Z"
+  fastmail cal event-update ID --title "Updated"
+  fastmail cal event-delete ID
+  fastmail cal invite --title "Meet" --start T --end T --attendee a@b.com
+
+Drafts:
+  fastmail draft list --li               List drafts (light)
+  fastmail draft get ID --li             Get draft (light)
+  fastmail draft new --to a@b.com --subject "Hi" --body "text"
+  fastmail draft new --reply-to ID --body "Thanks"
+  fastmail draft send ID                 Send draft
+  fastmail draft delete ID               Delete draft
+
+Vacation auto-reply:
+  fastmail vr get                        Get current settings
+  fastmail vr set --enable --subject "Away" --body "On vacation"
+  fastmail vr set --enable --from 2025-12-20 --until 2025-12-27 --body "..."
+  fastmail vr disable                    Disable auto-reply
+
+Sieve filters:
+  fastmail sieve auth --token T --cookie C  Store browser credentials
+  fastmail sieve get                     Get all sieve blocks
+  fastmail sieve get --block start       Get specific block
+  fastmail sieve set --start "# rules"   Update block inline
+  fastmail sieve set --start-file r.sieve  Update from file
+  fastmail sieve edit --block start      Edit in $EDITOR
+
+File storage:
+  fastmail files list                    List root directory
+  fastmail files list /Documents -r      List recursive
+  fastmail files upload doc.pdf /Docs/   Upload file
+  fastmail files download /Docs/r.pdf    Download file
+  fastmail files mkdir /NewFolder        Create directory
+  fastmail files delete /old.pdf         Delete file
+  fastmail files move /old /new          Move/rename
+
+Identity management:
+  fastmail email identities              List sending identities
+  fastmail email identity-set-default EMAIL  Set default identity
+
+Quota:
+  fastmail quota                         Show storage usage
+
+Open tracking:
+  fastmail email track setup --worker-url URL  Configure tracking
+  fastmail email track status            Show tracking config
+  fastmail email track opens             Query open events
+  fastmail email track rotate            Rotate tracking key
+
+Output formats:
+  --output text     Human-readable tables (default)
+  --output json     Full JSON
+  --query EXPR      JQ filter on JSON output
+  --li              Light mode: minimal payload (saves tokens)
+
+Common flags:
+  --account EMAIL   Account to use (or FASTMAIL_ACCOUNT env)
+  --output FORMAT   Output format: text|json
+  --query EXPR      JQ filter expression
+  --limit N         Max results (on list/search commands)
+  --dry-run         Preview without executing (on bulk commands)
+  --li              Light mode (on list, get, search, thread, events, drafts, contacts)
+  -y / --yes        Skip confirmations
+  --debug           Enable debug logging
+
+Exit codes:
+  0  Success
+  1  General error
+  2  Usage error (invalid flags or arguments)
+
+Environment:
+  FASTMAIL_ACCOUNT       Default account email
+  FASTMAIL_TOKEN         API token (for auth add)
+  FASTMAIL_CREDENTIALS_DIR  Credentials root (stores at <dir>/fastmail-cli/keyring)
+  OPENCLAW_CREDENTIALS_DIR  Shared credentials root fallback
+  FASTMAIL_KEYRING_PASSWORD File-backend keyring password (non-interactive)
+  FASTMAIL_KEYRING_BACKEND  Keyring backend: auto|default|file|keychain|wincred|secret-service
+  FASTMAIL_NO_BROWSER    Disable auth browser auto-open
+  FASTMAIL_OUTPUT        Default output format (text|json)
+  FASTMAIL_COLOR         Color output: auto|always|never
+  FASTMAIL_YES           Skip confirmations (0|1)
+
+  Auto-loads ~/.openclaw/.env when present (without overriding existing env vars)
+
+Auth:
+  fastmail auth [--no-browser]           Browser-based setup (interactive)
+  fastmail auth add EMAIL                Add account (prompts for token)
+  fastmail auth list                     List configured accounts
+  fastmail auth status                   Show default account
+  fastmail auth remove EMAIL             Remove account
+
+Discovery:
+  fastmail CMD --help                    Detailed help for any command
+
+Use "fastmail CMD --help" for detailed help on any command.

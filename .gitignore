@@ -1,0 +1,41 @@
+# Build artifacts
+bin/
+dist/
+/fastmail
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# IDE & AI
+.vscode/
+.claude/
+.cursor/
+.idea/
+.specstory/
+CLAUDE.md
+*.swp
+*.swo
+*~
+
+# Agent artifacts
+.dm/
+.private-journal/
+
+# Reference material
+.gitingest/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup/temp files
+*.todo
+*.bak
+*.orig
+node_modules
+
+# Documentation (plans/drafts)
+docs/
+COMPARISON.md

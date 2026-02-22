@@ -1,0 +1,115 @@
+version: 2
+
+project_name: fastmail
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: fastmail-darwin
+    main: ./cmd/fastmail
+    binary: fastmail
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=1
+    ldflags:
+      - -s -w
+      - -X github.com/salmonumbrella/fastmail-cli/internal/cmd.Version={{.Version}}
+      - -X github.com/salmonumbrella/fastmail-cli/internal/cmd.Commit={{.Commit}}
+      - -X github.com/salmonumbrella/fastmail-cli/internal/cmd.Date={{.Date}}
+
+  - id: fastmail-linux-windows
+    main: ./cmd/fastmail
+    binary: fastmail
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/salmonumbrella/fastmail-cli/internal/cmd.Version={{.Version}}
+      - -X github.com/salmonumbrella/fastmail-cli/internal/cmd.Commit={{.Commit}}
+      - -X github.com/salmonumbrella/fastmail-cli/internal/cmd.Date={{.Date}}
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+# Code signing and SBOM generation are disabled until syft/cosign are installed in CI
+# To enable, install syft and cosign in the release workflow and uncomment below
+#
+# signs:
+#   - cmd: cosign
+#     signature: "${artifact}.sig"
+#     certificate: "${artifact}.pem"
+#     args:
+#       - sign-blob
+#       - "--yes"
+#       - "--output-signature=${signature}"
+#       - "--output-certificate=${certificate}"
+#       - "${artifact}"
+#     artifacts: checksum
+#     output: true
+#
+# sboms:
+#   - artifacts: archive
+#     documents:
+#       - "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}.sbom"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+brews:
+  - name: fastmail-cli
+    repository:
+      owner: salmonumbrella
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/salmonumbrella/fastmail-cli"
+    description: "CLI for Fastmail to manage emails, folders, and masked addresses"
+    license: "MIT"
+    install: |
+      bin.install "fastmail"
+    test: |
+      system "#{bin}/fastmail", "--help"
+
+release:
+  github:
+    owner: salmonumbrella
+    name: fastmail-cli
+  prerelease: auto
+  name_template: "v{{.Version}}"
+
