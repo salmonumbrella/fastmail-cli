@@ -70,7 +70,7 @@ func TestCollectBulkIDs_FromAllSources(t *testing.T) {
 		t.Fatalf("collectBulkIDs unexpected error: %v", err)
 	}
 
-	want := []string{"id1", "id2", "id2", "id3", "id3", "id4"}
+	want := []string{"id1", "id2", "id3", "id4"}
 	if len(ids) != len(want) {
 		t.Fatalf("collectBulkIDs len=%d, want %d (%v)", len(ids), len(want), ids)
 	}

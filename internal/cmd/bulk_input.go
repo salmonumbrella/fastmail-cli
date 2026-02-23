@@ -59,8 +59,19 @@ func collectBulkIDs(args []string, opts bulkInputOptions) ([]string, error) {
 		ids = append(ids, stdinIDs...)
 	}
 
+	// Deduplicate while preserving order
+	seen := make(map[string]struct{}, len(ids))
+	unique := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if _, ok := seen[id]; !ok {
+			seen[id] = struct{}{}
+			unique = append(unique, id)
+		}
+	}
+	ids = unique
+
 	if len(ids) == 0 {
-		return nil, fmt.Errorf("no email IDs provided")
+		return nil, fmt.Errorf("%w: no email IDs provided", ErrUsage)
 	}
 
 	return ids, nil
@@ -68,7 +79,7 @@ func collectBulkIDs(args []string, opts bulkInputOptions) ([]string, error) {
 
 func runBulkInBatches(ids []string, batchSize int, opLabel string, op func(batch []string) (*jmap.BulkResult, error)) (*jmap.BulkResult, int, error) {
 	if batchSize <= 0 {
-		return nil, 0, fmt.Errorf("--batch-size must be greater than 0")
+		return nil, 0, fmt.Errorf("%w: --batch-size must be greater than 0", ErrUsage)
 	}
 
 	totalBatches := (len(ids) + batchSize - 1) / batchSize
