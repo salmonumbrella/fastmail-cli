@@ -23,6 +23,9 @@ const (
 	ExitCanceled    = 130
 )
 
+// ErrUsage is a sentinel for application-level usage errors.
+var ErrUsage = errors.New("usage error")
+
 // ExitCode maps command errors to stable process exit codes for automation.
 func ExitCode(err error) int {
 	if err == nil {
@@ -50,12 +53,13 @@ func ExitCode(err error) int {
 }
 
 func isUsageError(err error) bool {
-	if jmap.IsValidationError(err) {
+	if jmap.IsValidationError(err) || errors.Is(err, ErrUsage) {
 		return true
 	}
 
+	// Keep Cobra's string patterns as fallback — we don't control Cobra's error messages
 	msg := strings.ToLower(err.Error())
-	fragments := []string{
+	cobraFragments := []string{
 		"unknown flag",
 		"unknown command",
 		"requires at least",
@@ -64,12 +68,8 @@ func isUsageError(err error) bool {
 		"requires 1 arg",
 		"required flag(s)",
 		"flag needs an argument",
-		"--batch-size must be greater than 0",
-		"must be greater than 0",
-		"--to is required",
-		"no email ids provided",
 	}
-	for _, f := range fragments {
+	for _, f := range cobraFragments {
 		if strings.Contains(msg, f) {
 			return true
 		}
@@ -82,9 +82,9 @@ func isAuthFailure(err error) bool {
 		return true
 	}
 
+	// Keep string fallbacks for errors from external packages
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "authentication error") ||
-		strings.Contains(msg, "no accounts configured") ||
+	return strings.Contains(msg, "no accounts configured") ||
 		strings.Contains(msg, "failed to get token")
 }
 

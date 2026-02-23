@@ -37,7 +37,7 @@ Examples:
 			emailID := args[0]
 
 			if len(to) == 0 {
-				return fmt.Errorf("--to is required")
+				return fmt.Errorf("%w: --to is required", ErrUsage)
 			}
 
 			// Validate email addresses

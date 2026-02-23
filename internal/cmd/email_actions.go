@@ -229,7 +229,7 @@ func newEmailBulkArchiveCmd(app *App) *cobra.Command {
 func runEmailBulkMove(cmd *cobra.Command, args []string, app *App, targetMailbox string, dryRun bool, input bulkInputOptions) error {
 	// Validate required flags before accessing keyring
 	if targetMailbox == "" {
-		return fmt.Errorf("--to is required")
+		return fmt.Errorf("%w: --to is required", ErrUsage)
 	}
 
 	ids, err := collectBulkIDs(args, input)
@@ -309,7 +309,7 @@ func runEmailBulkMoveWithClient(cmd *cobra.Command, app *App, client bulkMoveCli
 func resolveMailboxTarget(ctx context.Context, client mailboxLookupClient, targetMailbox string) (string, string, error) {
 	targetMailbox = strings.TrimSpace(targetMailbox)
 	if targetMailbox == "" {
-		return "", "", fmt.Errorf("--to is required")
+		return "", "", fmt.Errorf("%w: --to is required", ErrUsage)
 	}
 
 	mailboxes, err := client.GetMailboxes(ctx)

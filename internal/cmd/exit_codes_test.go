@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -24,6 +25,11 @@ func TestExitCode(t *testing.T) {
 		{
 			name: "usage",
 			err:  errors.New("unknown flag: --oops"),
+			want: ExitUsage,
+		},
+		{
+			name: "usage-sentinel",
+			err:  fmt.Errorf("%w: --to is required", ErrUsage),
 			want: ExitUsage,
 		},
 		{

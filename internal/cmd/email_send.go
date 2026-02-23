@@ -48,13 +48,13 @@ Examples:
 
 			// For drafts with --reply-to, --to and --subject are optional (auto-filled)
 			if !draft && replyTo == "" && len(to) == 0 {
-				return fmt.Errorf("--to is required (or use --draft to save without sending)")
+				return fmt.Errorf("%w: --to is required (or use --draft to save without sending)", ErrUsage)
 			}
 			if replyTo == "" && subject == "" {
-				return fmt.Errorf("--subject is required")
+				return fmt.Errorf("%w: --subject is required", ErrUsage)
 			}
 			if body == "" && htmlBody == "" {
-				return fmt.Errorf("--body or --html is required")
+				return fmt.Errorf("%w: --body or --html is required", ErrUsage)
 			}
 
 			// Validate email addresses (only those provided)
