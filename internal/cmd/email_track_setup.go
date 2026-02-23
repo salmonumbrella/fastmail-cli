@@ -114,10 +114,14 @@ func newEmailTrackSetupCmd(app *App) *cobra.Command {
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, "Next steps (if deploying new worker):")
 			fmt.Fprintln(os.Stderr, "  Use these secrets with wrangler:")
-			fmt.Fprintf(os.Stderr, "    TRACKING_KEY=%s\n", key)
-			fmt.Fprintf(os.Stderr, "    TRACKING_KEY_V1=%s\n", key)
-			fmt.Fprintf(os.Stderr, "    TRACKING_CURRENT_KEY_VERSION=%d\n", cfg.TrackingKeyCurrentVersion)
-			fmt.Fprintf(os.Stderr, "    ADMIN_KEY=%s\n", admin)
+			if showSecrets {
+				fmt.Fprintf(os.Stderr, "    TRACKING_KEY=%s\n", key)
+				fmt.Fprintf(os.Stderr, "    TRACKING_KEY_V1=%s\n", key)
+				fmt.Fprintf(os.Stderr, "    TRACKING_CURRENT_KEY_VERSION=%d\n", cfg.TrackingKeyCurrentVersion)
+				fmt.Fprintf(os.Stderr, "    ADMIN_KEY=%s\n", admin)
+			} else {
+				fmt.Fprintln(os.Stderr, "    (use --show-secrets to display key values)")
+			}
 			fmt.Fprintln(os.Stderr, "  - wrangler secret put TRACKING_KEY")
 			fmt.Fprintln(os.Stderr, "  - wrangler secret put TRACKING_KEY_V1")
 			fmt.Fprintln(os.Stderr, "  - wrangler secret put TRACKING_CURRENT_KEY_VERSION")

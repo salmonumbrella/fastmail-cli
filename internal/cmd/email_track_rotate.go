@@ -11,6 +11,8 @@ import (
 )
 
 func newEmailTrackRotateCmd(app *App) *cobra.Command {
+	var showSecrets bool
+
 	cmd := &cobra.Command{
 		Use:   "rotate",
 		Short: "Rotate tracking encryption keys",
@@ -98,10 +100,14 @@ func newEmailTrackRotateCmd(app *App) *cobra.Command {
 
 			fmt.Printf("tracking_key_current_version\t%d\n", cfg.TrackingKeyCurrentVersion)
 			fmt.Fprintf(os.Stderr, "  TRACKING_CURRENT_KEY_VERSION=%d\n", cfg.TrackingKeyCurrentVersion)
-			for _, version := range updatedVersions {
-				if key, ok := updatedKeys[version]; ok {
-					fmt.Fprintf(os.Stderr, "  TRACKING_KEY_V%d=%s\n", version, key)
+			if showSecrets {
+				for _, version := range updatedVersions {
+					if key, ok := updatedKeys[version]; ok {
+						fmt.Fprintf(os.Stderr, "  TRACKING_KEY_V%d=%s\n", version, key)
+					}
 				}
+			} else {
+				fmt.Fprintln(os.Stderr, "  (use --show-secrets to display key values)")
 			}
 			fmt.Fprintf(os.Stderr, "Next steps (if rotating worker secrets):\n")
 			fmt.Fprintln(os.Stderr, "  - wrangler secret put TRACKING_CURRENT_KEY_VERSION")
@@ -110,6 +116,8 @@ func newEmailTrackRotateCmd(app *App) *cobra.Command {
 			return nil
 		}),
 	}
+
+	cmd.Flags().BoolVar(&showSecrets, "show-secrets", false, "Display key values in output")
 
 	return cmd
 }
