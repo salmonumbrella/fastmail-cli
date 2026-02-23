@@ -8,13 +8,14 @@ import (
 
 // EmailLight is a minimal email representation for --light mode.
 type EmailLight struct {
-	ID        string `json:"id"`
-	Subject   string `json:"subject"`
-	FromEmail string `json:"fromEmail"`
-	Date      string `json:"receivedAt"`
-	IsUnread  bool   `json:"isUnread"`
-	ThreadID  string `json:"threadId"`
-	MsgCount  int    `json:"messageCount,omitempty"`
+	ID            string `json:"id"`
+	Subject       string `json:"subject"`
+	FromEmail     string `json:"fromEmail"`
+	Date          string `json:"receivedAt"`
+	IsUnread      bool   `json:"isUnread"`
+	HasAttachment bool   `json:"hasAttachment"`
+	ThreadID      string `json:"threadId"`
+	MsgCount      int    `json:"messageCount,omitempty"`
 }
 
 // emailToLight converts an Email to a light representation.
@@ -24,12 +25,13 @@ func emailToLight(e jmap.Email) EmailLight {
 		fromEmail = e.From[0].Email
 	}
 	return EmailLight{
-		ID:        e.ID,
-		Subject:   format.Truncate(e.Subject, 80),
-		FromEmail: fromEmail,
-		Date:      e.ReceivedAt,
-		IsUnread:  e.Keywords == nil || !e.Keywords["$seen"],
-		ThreadID:  e.ThreadID,
+		ID:            e.ID,
+		Subject:       format.Truncate(e.Subject, 80),
+		FromEmail:     fromEmail,
+		Date:          e.ReceivedAt,
+		IsUnread:      e.Keywords == nil || !e.Keywords["$seen"],
+		HasAttachment: e.HasAttachment,
+		ThreadID:      e.ThreadID,
 	}
 }
 

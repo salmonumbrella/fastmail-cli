@@ -45,6 +45,9 @@ func TestEmailToLight(t *testing.T) {
 	if light.ThreadID != "T456" {
 		t.Errorf("ThreadID = %q, want %q", light.ThreadID, "T456")
 	}
+	if !light.HasAttachment {
+		t.Error("HasAttachment should be true when email has attachments")
+	}
 }
 
 func TestEmailToLight_Unread(t *testing.T) {
@@ -55,6 +58,18 @@ func TestEmailToLight_Unread(t *testing.T) {
 	light := emailToLight(email)
 	if !light.IsUnread {
 		t.Error("IsUnread should be true when Keywords is nil")
+	}
+}
+
+func TestEmailToLight_HasAttachment(t *testing.T) {
+	withAttach := jmap.Email{ID: "A1", HasAttachment: true}
+	if !emailToLight(withAttach).HasAttachment {
+		t.Error("HasAttachment should be true")
+	}
+
+	withoutAttach := jmap.Email{ID: "A2", HasAttachment: false}
+	if emailToLight(withoutAttach).HasAttachment {
+		t.Error("HasAttachment should be false")
 	}
 }
 

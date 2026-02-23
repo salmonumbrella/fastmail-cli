@@ -56,6 +56,9 @@ func loadEnvFileIfPresent(path string) error {
 	return nil
 }
 
+// parseDotEnvLine parses a single KEY=VALUE line from a .env file.
+// Supports # comments, export prefix, single and double-quoted values.
+// Does not support multiline values or escape sequences beyond strconv.Unquote.
 func parseDotEnvLine(line string) (key, value string, ok bool) {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" || strings.HasPrefix(trimmed, "#") {

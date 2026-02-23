@@ -27,22 +27,9 @@ func TestEmailBulkDeleteCmd_RequiresArgs(t *testing.T) {
 	// Verify the error is related to args validation
 	// Cobra's MinimumNArgs returns an error like "requires at least 1 arg(s), only received 0"
 	expectedErrPattern := "requires at least 1 arg"
-	if err != nil && !contains(err.Error(), expectedErrPattern) {
+	if err != nil && !strings.Contains(err.Error(), expectedErrPattern) {
 		t.Errorf("expected error containing %q, got: %v", expectedErrPattern, err)
 	}
-}
-
-// Helper function to check if a string contains a substring
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		func() bool {
-			for i := 0; i <= len(s)-len(substr); i++ {
-				if s[i:i+len(substr)] == substr {
-					return true
-				}
-			}
-			return false
-		}())
 }
 
 // TestEmailBulkDeleteCmd_AcceptsMultipleArgs verifies that the command accepts multiple email IDs
@@ -214,7 +201,7 @@ func TestEmailBulkMoveCmd_RequiresToFlag(t *testing.T) {
 
 	// Verify the error is about the missing --to flag
 	expectedErrPattern := "--to is required"
-	if err != nil && !contains(err.Error(), expectedErrPattern) {
+	if err != nil && !strings.Contains(err.Error(), expectedErrPattern) {
 		t.Errorf("expected error containing %q, got: %v", expectedErrPattern, err)
 	}
 }
@@ -394,7 +381,7 @@ func TestEmailBulkMoveCmd_RequiresArgs(t *testing.T) {
 
 	// Verify the error is related to args validation
 	expectedErrPattern := "requires at least 1 arg"
-	if err != nil && !contains(err.Error(), expectedErrPattern) {
+	if err != nil && !strings.Contains(err.Error(), expectedErrPattern) {
 		t.Errorf("expected error containing %q, got: %v", expectedErrPattern, err)
 	}
 }
@@ -572,7 +559,7 @@ func TestEmailBulkArchiveCmd_RequiresArgs(t *testing.T) {
 
 	// Verify the error is related to args validation
 	expectedErrPattern := "requires at least 1 arg"
-	if err != nil && !contains(err.Error(), expectedErrPattern) {
+	if err != nil && !strings.Contains(err.Error(), expectedErrPattern) {
 		t.Errorf("expected error containing %q, got: %v", expectedErrPattern, err)
 	}
 }
@@ -738,7 +725,7 @@ func TestEmailBulkMarkReadCmd_RequiresArgs(t *testing.T) {
 
 	// Verify the error is related to args validation
 	expectedErrPattern := "requires at least 1 arg"
-	if err != nil && !contains(err.Error(), expectedErrPattern) {
+	if err != nil && !strings.Contains(err.Error(), expectedErrPattern) {
 		t.Errorf("expected error containing %q, got: %v", expectedErrPattern, err)
 	}
 }

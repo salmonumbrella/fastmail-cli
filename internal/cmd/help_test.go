@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -44,5 +45,26 @@ func TestSubcommandHelp_UsesCobra(t *testing.T) {
 func TestHelpText_EmbeddedNonEmpty(t *testing.T) {
 	if len(helpText) < 100 {
 		t.Fatalf("helpText should be embedded and non-trivial, got %d bytes", len(helpText))
+	}
+}
+
+func TestHelpExitCodesMatchConstants(t *testing.T) {
+	// Verify documented exit codes match actual constants
+	codes := []int{
+		ExitSuccess,
+		ExitGeneral,
+		ExitUsage,
+		ExitAuth,
+		ExitNotFound,
+		ExitRateLimited,
+		ExitTemporary,
+		ExitCanceled,
+	}
+
+	for _, code := range codes {
+		pattern := fmt.Sprintf("%d", code)
+		if !strings.Contains(helpText, pattern) {
+			t.Errorf("help.txt missing exit code %d", code)
+		}
 	}
 }

@@ -84,6 +84,10 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
+	if !cfg.SecretsInKeyring && (cfg.TrackingKey != "" || cfg.AdminKey != "") {
+		fmt.Fprintln(os.Stderr, "warning: tracking secrets stored in config file (not keyring); run 'fastmail email track setup' to migrate")
+	}
+
 	return &cfg, nil
 }
 
