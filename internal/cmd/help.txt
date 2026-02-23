@@ -14,7 +14,7 @@ Aliases (subcommand -> short):
   list=ls  search=s=find  get=show=cat  delete=rm=trash
   forward=fwd  attachments=att  download=dl  mark-read=read=seen
   thread=t  bulk-delete=bulk-rm  bulk-move=bulk-mv
-  bulk-mark-read=bulk-read  send=submit(draft)
+  bulk-archive=archive-many  bulk-mark-read=bulk-read  send=submit(draft)
 
 Reading email:
   fastmail list --limit 10               List recent emails
@@ -43,6 +43,9 @@ Email actions:
 Bulk operations:
   fastmail email bulk-delete ID1 ID2     Bulk delete
   fastmail email bulk-move --to Inbox ID1 ID2  Bulk move
+  fastmail email bulk-archive ID1 ID2    Archive in bulk
+  fastmail email bulk-archive --ids-file /tmp/fm-ids.txt --yes
+  fastmail email bulk-archive --stdin --yes < /tmp/fm-ids.txt
   fastmail email bulk-mark-read ID1 ID2  Bulk mark read
   fastmail email bulk-mark-read --unread ID1 ID2
 
@@ -148,6 +151,11 @@ Exit codes:
   0  Success
   1  General error
   2  Usage error (invalid flags or arguments)
+  3  Authentication error
+  4  Not found
+  5  Rate limited
+  6  Temporary service/network error
+  130 Canceled
 
 Environment:
   FASTMAIL_ACCOUNT       Default account email

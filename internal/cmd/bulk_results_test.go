@@ -46,3 +46,21 @@ func TestPrintBulkResults_WithFailures_NoTarget(t *testing.T) {
 		t.Fatalf("missing failure line: %q", out)
 	}
 }
+
+func TestPrintBulkResults_WithFailures_SortedByID(t *testing.T) {
+	out := captureStdout(t, func() {
+		printBulkResults("Moved", "emails", 1, 2, map[string]string{
+			"id9": "late",
+			"id1": "early",
+		})
+	})
+
+	id1Pos := strings.Index(out, "id1: early")
+	id9Pos := strings.Index(out, "id9: late")
+	if id1Pos == -1 || id9Pos == -1 {
+		t.Fatalf("missing expected failure rows: %q", out)
+	}
+	if id1Pos > id9Pos {
+		t.Fatalf("expected failures sorted by ID, got: %q", out)
+	}
+}

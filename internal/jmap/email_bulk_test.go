@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -376,6 +377,131 @@ func TestDeleteEmails_AllFailed(t *testing.T) {
 	}
 }
 
+func TestDeleteEmails_MethodError(t *testing.T) {
+	mailboxesResponse := `{
+		"methodResponses": [
+			["Mailbox/get", {
+				"accountId": "acc123",
+				"list": [
+					{
+						"id": "trash-123",
+						"name": "Trash",
+						"role": "trash",
+						"totalEmails": 0,
+						"unreadEmails": 0
+					}
+				]
+			}, "mailboxes"]
+		]
+	}`
+
+	response := `{
+		"methodResponses": [
+			["error", {
+				"type": "invalidArguments",
+				"description": "The update patch is invalid"
+			}, "moveToTrash"]
+		]
+	}`
+
+	var requestCount int
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		requestCount++
+		if requestCount == 1 {
+			_, _ = w.Write([]byte(mailboxesResponse))
+			return
+		}
+		_, _ = w.Write([]byte(response))
+	}))
+	defer apiServer.Close()
+
+	sessionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"apiUrl": "` + apiServer.URL + `",
+			"uploadUrl": "` + apiServer.URL + `/{accountId}/",
+			"downloadUrl": "` + apiServer.URL + `",
+			"accounts": {"acc123": {}},
+			"primaryAccounts": {"urn:ietf:params:jmap:mail": "acc123"}
+		}`))
+	}))
+	defer sessionServer.Close()
+
+	client := NewClientWithBaseURL("test-token", sessionServer.URL)
+
+	result, err := client.DeleteEmails(context.Background(), []string{"email1"})
+	if err == nil {
+		t.Fatal("DeleteEmails() expected method error, got nil")
+	}
+	if result != nil {
+		t.Fatalf("DeleteEmails() expected nil result on method error, got %#v", result)
+	}
+	if !strings.Contains(err.Error(), "invalidArguments") {
+		t.Fatalf("DeleteEmails() error should include method error type, got: %v", err)
+	}
+}
+
+func TestDeleteEmail_MethodError(t *testing.T) {
+	mailboxesResponse := `{
+		"methodResponses": [
+			["Mailbox/get", {
+				"accountId": "acc123",
+				"list": [
+					{
+						"id": "trash-123",
+						"name": "Trash",
+						"role": "trash",
+						"totalEmails": 0,
+						"unreadEmails": 0
+					}
+				]
+			}, "mailboxes"]
+		]
+	}`
+
+	response := `{
+		"methodResponses": [
+			["error", {
+				"type": "invalidArguments",
+				"description": "The update patch is invalid"
+			}, "moveToTrash"]
+		]
+	}`
+
+	var requestCount int
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		requestCount++
+		if requestCount == 1 {
+			_, _ = w.Write([]byte(mailboxesResponse))
+			return
+		}
+		_, _ = w.Write([]byte(response))
+	}))
+	defer apiServer.Close()
+
+	sessionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"apiUrl": "` + apiServer.URL + `",
+			"uploadUrl": "` + apiServer.URL + `/{accountId}/",
+			"downloadUrl": "` + apiServer.URL + `",
+			"accounts": {"acc123": {}},
+			"primaryAccounts": {"urn:ietf:params:jmap:mail": "acc123"}
+		}`))
+	}))
+	defer sessionServer.Close()
+
+	client := NewClientWithBaseURL("test-token", sessionServer.URL)
+
+	err := client.DeleteEmail(context.Background(), "email1")
+	if err == nil {
+		t.Fatal("DeleteEmail() expected method error, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalidArguments") {
+		t.Fatalf("DeleteEmail() error should include method error type, got: %v", err)
+	}
+}
+
 func TestParseBulkUpdateResult(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -650,6 +776,87 @@ func TestMoveEmails_EmptyInput(t *testing.T) {
 	}
 }
 
+func TestMoveEmails_MethodError(t *testing.T) {
+	// Response where JMAP returns a method-level error.
+	response := `{
+		"methodResponses": [
+			["error", {
+				"type": "invalidArguments",
+				"description": "The update patch is invalid"
+			}, "moveEmails"]
+		]
+	}`
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(response))
+	}))
+	defer apiServer.Close()
+
+	sessionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"apiUrl": "` + apiServer.URL + `",
+			"uploadUrl": "` + apiServer.URL + `/{accountId}/",
+			"downloadUrl": "` + apiServer.URL + `",
+			"accounts": {"acc123": {}},
+			"primaryAccounts": {"urn:ietf:params:jmap:mail": "acc123"}
+		}`))
+	}))
+	defer sessionServer.Close()
+
+	client := NewClientWithBaseURL("test-token", sessionServer.URL)
+
+	result, err := client.MoveEmails(context.Background(), []string{"email1"}, "archive-123")
+	if err == nil {
+		t.Fatal("MoveEmails() expected method error, got nil")
+	}
+	if result != nil {
+		t.Fatalf("MoveEmails() expected nil result on method error, got %#v", result)
+	}
+
+	if !strings.Contains(err.Error(), "invalidArguments") {
+		t.Fatalf("MoveEmails() error should include method error type, got: %v", err)
+	}
+}
+
+func TestMoveEmail_MethodError(t *testing.T) {
+	response := `{
+		"methodResponses": [
+			["error", {
+				"type": "invalidArguments",
+				"description": "The update patch is invalid"
+			}, "moveEmail"]
+		]
+	}`
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(response))
+	}))
+	defer apiServer.Close()
+
+	sessionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"apiUrl": "` + apiServer.URL + `",
+			"uploadUrl": "` + apiServer.URL + `/{accountId}/",
+			"downloadUrl": "` + apiServer.URL + `",
+			"accounts": {"acc123": {}},
+			"primaryAccounts": {"urn:ietf:params:jmap:mail": "acc123"}
+		}`))
+	}))
+	defer sessionServer.Close()
+
+	client := NewClientWithBaseURL("test-token", sessionServer.URL)
+
+	err := client.MoveEmail(context.Background(), "email1", "archive-123")
+	if err == nil {
+		t.Fatal("MoveEmail() expected method error, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalidArguments") {
+		t.Fatalf("MoveEmail() error should include method error type, got: %v", err)
+	}
+}
+
 func TestMarkEmailsRead_Multiple(t *testing.T) {
 	// Response for successfully marking 3 emails as read
 	response := `{
@@ -869,6 +1076,85 @@ func TestMarkEmailsRead_EmptyInput(t *testing.T) {
 
 	if len(result.Failed) != 0 {
 		t.Errorf("MarkEmailsRead() failed count = %d, want 0", len(result.Failed))
+	}
+}
+
+func TestMarkEmailsRead_MethodError(t *testing.T) {
+	response := `{
+		"methodResponses": [
+			["error", {
+				"type": "invalidArguments",
+				"description": "The update patch is invalid"
+			}, "markRead"]
+		]
+	}`
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(response))
+	}))
+	defer apiServer.Close()
+
+	sessionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"apiUrl": "` + apiServer.URL + `",
+			"uploadUrl": "` + apiServer.URL + `/{accountId}/",
+			"downloadUrl": "` + apiServer.URL + `",
+			"accounts": {"acc123": {}},
+			"primaryAccounts": {"urn:ietf:params:jmap:mail": "acc123"}
+		}`))
+	}))
+	defer sessionServer.Close()
+
+	client := NewClientWithBaseURL("test-token", sessionServer.URL)
+
+	result, err := client.MarkEmailsRead(context.Background(), []string{"email1"}, true)
+	if err == nil {
+		t.Fatal("MarkEmailsRead() expected method error, got nil")
+	}
+	if result != nil {
+		t.Fatalf("MarkEmailsRead() expected nil result on method error, got %#v", result)
+	}
+	if !strings.Contains(err.Error(), "invalidArguments") {
+		t.Fatalf("MarkEmailsRead() error should include method error type, got: %v", err)
+	}
+}
+
+func TestMarkEmailRead_MethodError(t *testing.T) {
+	response := `{
+		"methodResponses": [
+			["error", {
+				"type": "invalidArguments",
+				"description": "The update patch is invalid"
+			}, "updateEmail"]
+		]
+	}`
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(response))
+	}))
+	defer apiServer.Close()
+
+	sessionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"apiUrl": "` + apiServer.URL + `",
+			"uploadUrl": "` + apiServer.URL + `/{accountId}/",
+			"downloadUrl": "` + apiServer.URL + `",
+			"accounts": {"acc123": {}},
+			"primaryAccounts": {"urn:ietf:params:jmap:mail": "acc123"}
+		}`))
+	}))
+	defer sessionServer.Close()
+
+	client := NewClientWithBaseURL("test-token", sessionServer.URL)
+
+	err := client.MarkEmailRead(context.Background(), "email1", true)
+	if err == nil {
+		t.Fatal("MarkEmailRead() expected method error, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalidArguments") {
+		t.Fatalf("MarkEmailRead() error should include method error type, got: %v", err)
 	}
 }
 

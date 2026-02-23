@@ -160,9 +160,10 @@ fastmail email mailbox-rename <oldName> <newName>
 fastmail email mailbox-delete <name>
 
 # Bulk operations
-fastmail email bulk-delete <emailId>...
-fastmail email bulk-move <emailId>... --to <mailbox>
-fastmail email bulk-mark-read <emailId>... [--unread]
+fastmail email bulk-delete <emailId>... [--batch-size <n>] [--ids-file <path>] [--stdin]
+fastmail email bulk-move --to <mailbox> <emailId>... [--batch-size <n>] [--ids-file <path>] [--stdin]
+fastmail email bulk-archive <emailId>... [--batch-size <n>] [--ids-file <path>] [--stdin]
+fastmail email bulk-mark-read <emailId>... [--unread] [--batch-size <n>] [--ids-file <path>] [--stdin]
 ```
 
 ### Drafts
@@ -359,7 +360,17 @@ fastmail email mark-read <emailId>
 fastmail email bulk-delete <emailId1> <emailId2> <emailId3>
 
 # Move multiple emails to a folder
-fastmail email bulk-move <emailId1> <emailId2> --to Archive
+fastmail email bulk-move --to Archive <emailId1> <emailId2>
+
+# Archive multiple emails
+fastmail email bulk-archive <emailId1> <emailId2>
+
+# Archive from file/stdin without xargs
+fastmail email bulk-archive --ids-file /tmp/fm-archive-ids.txt --yes
+fastmail email bulk-archive --stdin --yes < /tmp/fm-archive-ids.txt
+
+# Tune client-side chunking
+fastmail email bulk-archive --ids-file /tmp/fm-archive-ids.txt --batch-size 100 --yes
 
 # Mark multiple emails as read
 fastmail email bulk-mark-read <emailId1> <emailId2> <emailId3>

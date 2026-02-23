@@ -18,6 +18,7 @@ func newEmailCmd(app *App) *cobra.Command {
 	cmd.AddCommand(newEmailBulkDeleteCmd(app))
 	cmd.AddCommand(newEmailMoveCmd(app))
 	cmd.AddCommand(newEmailBulkMoveCmd(app))
+	cmd.AddCommand(newEmailBulkArchiveCmd(app))
 	cmd.AddCommand(newEmailMarkReadCmd(app))
 	cmd.AddCommand(newEmailBulkMarkReadCmd(app))
 	cmd.AddCommand(newEmailThreadCmd(app))

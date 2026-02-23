@@ -1,6 +1,9 @@
 package cmd
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // printBulkResults prints the outcome of a bulk email operation (delete, move, mark).
 //
@@ -37,7 +40,15 @@ func printBulkResults(action, target string, succeededCount, failedCount int, fa
 	} else {
 		fmt.Printf("%s %d, %d failed:\n", action, succeededCount, failedCount)
 	}
-	for id, errMsg := range failed {
+
+	ids := make([]string, 0, len(failed))
+	for id := range failed {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
+	for _, id := range ids {
+		errMsg := failed[id]
 		fmt.Printf("  %s: %s\n", id, errMsg)
 	}
 }

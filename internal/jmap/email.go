@@ -1194,9 +1194,9 @@ func (c *Client) DeleteEmail(ctx context.Context, id string) error {
 		return err
 	}
 
-	result, ok := resp.MethodResponses[0][1].(map[string]any)
-	if !ok {
-		return fmt.Errorf("unexpected response format")
+	result, err := decodeMethodResponse[map[string]any](resp, 0)
+	if err != nil {
+		return err
 	}
 
 	if notUpdated, ok := result["notUpdated"].(map[string]any); ok {
@@ -1266,9 +1266,9 @@ func (c *Client) DeleteEmails(ctx context.Context, ids []string) (*BulkResult, e
 		return nil, err
 	}
 
-	result, ok := resp.MethodResponses[0][1].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("unexpected response format")
+	result, err := decodeMethodResponse[map[string]any](resp, 0)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse succeeded and failed IDs
@@ -1354,9 +1354,9 @@ func (c *Client) MoveEmails(ctx context.Context, ids []string, targetMailboxID s
 		return nil, err
 	}
 
-	result, ok := resp.MethodResponses[0][1].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("unexpected response format")
+	result, err := decodeMethodResponse[map[string]any](resp, 0)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse succeeded and failed IDs
@@ -1397,9 +1397,9 @@ func (c *Client) MoveEmail(ctx context.Context, id, targetMailboxID string) erro
 		return err
 	}
 
-	result, ok := resp.MethodResponses[0][1].(map[string]any)
-	if !ok {
-		return fmt.Errorf("unexpected response format")
+	result, err := decodeMethodResponse[map[string]any](resp, 0)
+	if err != nil {
+		return err
 	}
 
 	if notUpdated, ok := result["notUpdated"].(map[string]any); ok {
@@ -1447,9 +1447,9 @@ func (c *Client) MarkEmailRead(ctx context.Context, id string, read bool) error 
 		return err
 	}
 
-	result, ok := resp.MethodResponses[0][1].(map[string]any)
-	if !ok {
-		return fmt.Errorf("unexpected response format")
+	result, err := decodeMethodResponse[map[string]any](resp, 0)
+	if err != nil {
+		return err
 	}
 
 	if notUpdated, ok := result["notUpdated"].(map[string]any); ok {
@@ -1511,9 +1511,9 @@ func (c *Client) MarkEmailsRead(ctx context.Context, ids []string, read bool) (*
 		return nil, err
 	}
 
-	result, ok := resp.MethodResponses[0][1].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("unexpected response format")
+	result, err := decodeMethodResponse[map[string]any](resp, 0)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse succeeded and failed IDs

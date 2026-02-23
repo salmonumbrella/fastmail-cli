@@ -1,11 +1,23 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	cerrors "github.com/salmonumbrella/fastmail-cli/internal/errors"
+	"github.com/salmonumbrella/fastmail-cli/internal/jmap"
 	"github.com/spf13/cobra"
 )
+
+type mailboxLookupClient interface {
+	GetMailboxes(ctx context.Context) ([]jmap.Mailbox, error)
+}
+
+type bulkMoveClient interface {
+	mailboxLookupClient
+	MoveEmails(ctx context.Context, ids []string, targetMailboxID string) (*jmap.BulkResult, error)
+}
 
 func newEmailDeleteCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
@@ -41,16 +53,27 @@ func newEmailDeleteCmd(app *App) *cobra.Command {
 
 func newEmailBulkDeleteCmd(app *App) *cobra.Command {
 	var dryRun bool
+	var input bulkInputOptions
 
 	cmd := &cobra.Command{
 		Use:     "bulk-delete <emailId>...",
 		Aliases: []string{"bulk-rm", "rm-many"},
 		Short:   "Delete multiple emails (move to trash)",
-		Args:    cobra.MinimumNArgs(1),
+		Example: `  fastmail email bulk-delete ID1 ID2
+  fastmail email bulk-delete --ids-file /tmp/fm-ids.txt --yes
+  fastmail email bulk-delete --stdin --yes < /tmp/fm-ids.txt`,
+		Args: validateBulkInputArgs,
 		RunE: runE(app, func(cmd *cobra.Command, args []string, app *App) error {
+			ids, err := collectBulkIDs(args, input)
+			if err != nil {
+				return err
+			}
+
 			// Handle dry-run mode
 			if dryRun {
-				return printDryRunList(app, cmd, fmt.Sprintf("Would delete %d emails:", len(args)), "wouldDelete", args, nil)
+				return printDryRunList(app, cmd, fmt.Sprintf("Would delete %d emails:", len(ids)), "wouldDelete", ids, map[string]any{
+					"batchSize": input.BatchSize,
+				})
 			}
 
 			client, err := app.JMAPClient()
@@ -59,7 +82,7 @@ func newEmailBulkDeleteCmd(app *App) *cobra.Command {
 			}
 
 			// Prompt for confirmation unless --yes flag is set (global) or JSON output mode.
-			confirmed, err := app.Confirm(cmd, false, fmt.Sprintf("Delete %d emails? [y/N] ", len(args)), "y", "yes")
+			confirmed, err := app.Confirm(cmd, false, fmt.Sprintf("Delete %d emails? [y/N] ", len(ids)), "y", "yes")
 			if err != nil {
 				return err
 			}
@@ -68,8 +91,10 @@ func newEmailBulkDeleteCmd(app *App) *cobra.Command {
 				return nil
 			}
 
-			// Delete emails using bulk API
-			results, err := client.DeleteEmails(cmd.Context(), args)
+			// Delete emails using bulk API in client-side batches.
+			results, batches, err := runBulkInBatches(ids, input.BatchSize, "deleting emails", func(batch []string) (*jmap.BulkResult, error) {
+				return client.DeleteEmails(cmd.Context(), batch)
+			})
 			if err != nil {
 				return cerrors.WithContext(err, "deleting emails")
 			}
@@ -79,11 +104,17 @@ func newEmailBulkDeleteCmd(app *App) *cobra.Command {
 				output := map[string]any{
 					"status":    "deleted",
 					"succeeded": results.Succeeded,
+					"batchSize": input.BatchSize,
+					"batches":   batches,
 				}
 				if len(results.Failed) > 0 {
 					output["failed"] = results.Failed
 				}
 				return app.PrintJSON(cmd, output)
+			}
+
+			if batches > 1 {
+				fmt.Printf("Processed %d emails in %d batches (batch size %d)\n", len(ids), batches, input.BatchSize)
 			}
 
 			// Handle text output
@@ -96,6 +127,7 @@ func newEmailBulkDeleteCmd(app *App) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be deleted without making changes")
+	addBulkInputFlags(cmd, &input)
 
 	return cmd
 }
@@ -114,31 +146,27 @@ func newEmailMoveCmd(app *App) *cobra.Command {
 				return err
 			}
 
-			if targetMailbox == "" {
-				return fmt.Errorf("--to is required")
-			}
-
-			// Resolve target mailbox ID or name
-			resolvedID, err := client.ResolveMailboxID(cmd.Context(), targetMailbox)
+			// Resolve target mailbox ID + display name in one mailbox fetch.
+			resolvedID, mailboxName, err := resolveMailboxTarget(cmd.Context(), client, targetMailbox)
 			if err != nil {
-				return fmt.Errorf("invalid target mailbox: %w", err)
+				return err
 			}
-			targetMailbox = resolvedID
 
-			err = client.MoveEmail(cmd.Context(), args[0], targetMailbox)
+			err = client.MoveEmail(cmd.Context(), args[0], resolvedID)
 			if err != nil {
 				return cerrors.WithContext(err, "moving email")
 			}
 
 			if app.IsJSON(cmd.Context()) {
 				return app.PrintJSON(cmd, map[string]any{
-					"status":  "moved",
-					"moved":   args[0],
-					"mailbox": targetMailbox,
+					"status":    "moved",
+					"moved":     args[0],
+					"mailbox":   mailboxName,
+					"mailboxId": resolvedID,
 				})
 			}
 
-			fmt.Printf("Email %s moved to mailbox %s\n", args[0], targetMailbox)
+			fmt.Printf("Email %s moved to mailbox %s\n", args[0], mailboxName)
 			return nil
 		}),
 	}
@@ -151,88 +179,18 @@ func newEmailMoveCmd(app *App) *cobra.Command {
 func newEmailBulkMoveCmd(app *App) *cobra.Command {
 	var targetMailbox string
 	var dryRun bool
+	var input bulkInputOptions
 
 	cmd := &cobra.Command{
 		Use:     "bulk-move <emailId>...",
 		Aliases: []string{"bulk-mv"},
 		Short:   "Move multiple emails to a mailbox",
-		Args:    cobra.MinimumNArgs(1),
+		Example: `  fastmail email bulk-move --to Archive ID1 ID2
+  fastmail email bulk-move --ids-file /tmp/fm-ids.txt --to Archive --yes
+  fastmail email bulk-move --stdin --to Archive --yes < /tmp/fm-ids.txt`,
+		Args: validateBulkInputArgs,
 		RunE: runE(app, func(cmd *cobra.Command, args []string, app *App) error {
-			// Validate required flags before accessing keyring
-			if targetMailbox == "" {
-				return fmt.Errorf("--to is required")
-			}
-
-			// Handle dry-run mode without requiring keyring / network.
-			if dryRun {
-				return printDryRunList(app, cmd, fmt.Sprintf("Would move %d emails to %s:", len(args), targetMailbox), "wouldMove", args, map[string]any{
-					"mailbox": targetMailbox,
-				})
-			}
-
-			client, err := app.JMAPClient()
-			if err != nil {
-				return err
-			}
-
-			// Resolve target mailbox ID or name
-			resolvedID, err := client.ResolveMailboxID(cmd.Context(), targetMailbox)
-			if err != nil {
-				return fmt.Errorf("invalid target mailbox: %w", err)
-			}
-
-			// Get mailbox name for output
-			mailboxes, err := client.GetMailboxes(cmd.Context())
-			if err != nil {
-				return fmt.Errorf("failed to get mailboxes: %w", err)
-			}
-
-			var mailboxName string
-			for _, mb := range mailboxes {
-				if mb.ID == resolvedID {
-					mailboxName = mb.Name
-					break
-				}
-			}
-			if mailboxName == "" {
-				mailboxName = resolvedID
-			}
-
-			// Prompt for confirmation unless --yes flag is set (global) or JSON output mode.
-			confirmed, err := app.Confirm(cmd, false, fmt.Sprintf("Move %d emails to %s? [y/N] ", len(args), mailboxName), "y", "yes")
-			if err != nil {
-				return err
-			}
-			if !confirmed {
-				printCancelled()
-				return nil
-			}
-
-			// Move emails using bulk API
-			results, err := client.MoveEmails(cmd.Context(), args, resolvedID)
-			if err != nil {
-				return cerrors.WithContext(err, "moving emails")
-			}
-
-			// Handle JSON output
-			if app.IsJSON(cmd.Context()) {
-				output := map[string]any{
-					"status":    "moved",
-					"mailbox":   mailboxName,
-					"succeeded": results.Succeeded,
-				}
-				if len(results.Failed) > 0 {
-					output["failed"] = results.Failed
-				}
-				return app.PrintJSON(cmd, output)
-			}
-
-			// Handle text output
-			succeededCount := len(results.Succeeded)
-			failedCount := len(results.Failed)
-			printBulkResults("Moved", fmt.Sprintf("emails to %s", mailboxName), succeededCount, failedCount, results.Failed)
-
-			return nil
+			return runEmailBulkMove(cmd, args, app, targetMailbox, dryRun, input)
 		}),
 	}
 
@@ -240,8 +198,145 @@ func newEmailBulkMoveCmd(app *App) *cobra.Command {
 	cmd.Flags().StringVar(&targetMailbox, "mailbox", "", "Target mailbox ID or name (alias for --to)")
 	_ = cmd.Flags().MarkHidden("mailbox") // Hidden alias for agent compatibility
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be moved without making changes")
+	addBulkInputFlags(cmd, &input)
 
 	return cmd
+}
+
+func newEmailBulkArchiveCmd(app *App) *cobra.Command {
+	var dryRun bool
+	var input bulkInputOptions
+
+	cmd := &cobra.Command{
+		Use:     "bulk-archive <emailId>...",
+		Aliases: []string{"archive-many", "bulk-arch"},
+		Short:   "Archive multiple emails",
+		Example: `  fastmail email bulk-archive ID1 ID2
+  fastmail email bulk-archive --ids-file /tmp/fm-ids.txt --yes
+  fastmail email bulk-archive --stdin --yes < /tmp/fm-ids.txt`,
+		Args: validateBulkInputArgs,
+		RunE: runE(app, func(cmd *cobra.Command, args []string, app *App) error {
+			return runEmailBulkMove(cmd, args, app, "Archive", dryRun, input)
+		}),
+	}
+
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be moved without making changes")
+	addBulkInputFlags(cmd, &input)
+
+	return cmd
+}
+
+func runEmailBulkMove(cmd *cobra.Command, args []string, app *App, targetMailbox string, dryRun bool, input bulkInputOptions) error {
+	// Validate required flags before accessing keyring
+	if targetMailbox == "" {
+		return fmt.Errorf("--to is required")
+	}
+
+	ids, err := collectBulkIDs(args, input)
+	if err != nil {
+		return err
+	}
+
+	// Handle dry-run mode without requiring keyring / network.
+	if dryRun {
+		return printDryRunList(app, cmd, fmt.Sprintf("Would move %d emails to %s:", len(ids), targetMailbox), "wouldMove", ids, map[string]any{
+			"mailbox":   targetMailbox,
+			"batchSize": input.BatchSize,
+		})
+	}
+
+	client, err := app.JMAPClient()
+	if err != nil {
+		return err
+	}
+
+	return runEmailBulkMoveWithClient(cmd, app, client, ids, targetMailbox, input.BatchSize)
+}
+
+func runEmailBulkMoveWithClient(cmd *cobra.Command, app *App, client bulkMoveClient, ids []string, targetMailbox string, batchSize int) error {
+	// Resolve target mailbox ID + display name in one mailbox fetch.
+	resolvedID, mailboxName, err := resolveMailboxTarget(cmd.Context(), client, targetMailbox)
+	if err != nil {
+		return err
+	}
+
+	// Prompt for confirmation unless --yes flag is set (global) or JSON output mode.
+	confirmed, err := app.Confirm(cmd, false, fmt.Sprintf("Move %d emails to %s? [y/N] ", len(ids), mailboxName), "y", "yes")
+	if err != nil {
+		return err
+	}
+	if !confirmed {
+		printCancelled()
+		return nil
+	}
+
+	// Move emails using bulk API in client-side batches.
+	results, batches, err := runBulkInBatches(ids, batchSize, "moving emails", func(batch []string) (*jmap.BulkResult, error) {
+		return client.MoveEmails(cmd.Context(), batch, resolvedID)
+	})
+	if err != nil {
+		return cerrors.WithContext(err, "moving emails")
+	}
+
+	// Handle JSON output
+	if app.IsJSON(cmd.Context()) {
+		output := map[string]any{
+			"status":    "moved",
+			"mailbox":   mailboxName,
+			"mailboxId": resolvedID,
+			"succeeded": results.Succeeded,
+			"batchSize": batchSize,
+			"batches":   batches,
+		}
+		if len(results.Failed) > 0 {
+			output["failed"] = results.Failed
+		}
+		return app.PrintJSON(cmd, output)
+	}
+
+	if batches > 1 {
+		fmt.Printf("Processed %d emails in %d batches (batch size %d)\n", len(ids), batches, batchSize)
+	}
+
+	// Handle text output
+	succeededCount := len(results.Succeeded)
+	failedCount := len(results.Failed)
+	printBulkResults("Moved", fmt.Sprintf("emails to %s", mailboxName), succeededCount, failedCount, results.Failed)
+
+	return nil
+}
+
+func resolveMailboxTarget(ctx context.Context, client mailboxLookupClient, targetMailbox string) (string, string, error) {
+	targetMailbox = strings.TrimSpace(targetMailbox)
+	if targetMailbox == "" {
+		return "", "", fmt.Errorf("--to is required")
+	}
+
+	mailboxes, err := client.GetMailboxes(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get mailboxes: %w", err)
+	}
+
+	targetLower := strings.ToLower(targetMailbox)
+	for _, mb := range mailboxes {
+		if strings.ToLower(mb.Name) == targetLower || strings.ToLower(mb.Role) == targetLower {
+			if mb.Name == "" {
+				return mb.ID, mb.ID, nil
+			}
+			return mb.ID, mb.Name, nil
+		}
+	}
+
+	for _, mb := range mailboxes {
+		if mb.ID == targetMailbox {
+			if mb.Name == "" {
+				return mb.ID, mb.ID, nil
+			}
+			return mb.ID, mb.Name, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("invalid target mailbox: %w: %s", jmap.ErrMailboxNotFound, targetMailbox)
 }
 
 func newEmailMarkReadCmd(app *App) *cobra.Command {
@@ -288,13 +383,22 @@ func newEmailMarkReadCmd(app *App) *cobra.Command {
 func newEmailBulkMarkReadCmd(app *App) *cobra.Command {
 	var unread bool
 	var dryRun bool
+	var input bulkInputOptions
 
 	cmd := &cobra.Command{
 		Use:     "bulk-mark-read <emailId>...",
 		Aliases: []string{"bulk-read", "bulk-seen"},
 		Short:   "Mark multiple emails as read/unread",
-		Args:    cobra.MinimumNArgs(1),
+		Example: `  fastmail email bulk-mark-read ID1 ID2
+  fastmail email bulk-mark-read --ids-file /tmp/fm-ids.txt --yes
+  fastmail email bulk-mark-read --stdin --unread --yes < /tmp/fm-ids.txt`,
+		Args: validateBulkInputArgs,
 		RunE: runE(app, func(cmd *cobra.Command, args []string, app *App) error {
+			ids, err := collectBulkIDs(args, input)
+			if err != nil {
+				return err
+			}
+
 			status := "read"
 			if unread {
 				status = "unread"
@@ -302,8 +406,9 @@ func newEmailBulkMarkReadCmd(app *App) *cobra.Command {
 
 			// Handle dry-run mode
 			if dryRun {
-				return printDryRunList(app, cmd, fmt.Sprintf("Would mark %d emails as %s:", len(args), status), "wouldMark", args, map[string]any{
-					"status": status,
+				return printDryRunList(app, cmd, fmt.Sprintf("Would mark %d emails as %s:", len(ids), status), "wouldMark", ids, map[string]any{
+					"status":    status,
+					"batchSize": input.BatchSize,
 				})
 			}
 
@@ -312,8 +417,10 @@ func newEmailBulkMarkReadCmd(app *App) *cobra.Command {
 				return err
 			}
 
-			// Mark emails using bulk API
-			results, err := client.MarkEmailsRead(cmd.Context(), args, !unread)
+			// Mark emails using bulk API in client-side batches.
+			results, batches, err := runBulkInBatches(ids, input.BatchSize, "marking emails", func(batch []string) (*jmap.BulkResult, error) {
+				return client.MarkEmailsRead(cmd.Context(), batch, !unread)
+			})
 			if err != nil {
 				return cerrors.WithContext(err, "marking emails")
 			}
@@ -323,11 +430,17 @@ func newEmailBulkMarkReadCmd(app *App) *cobra.Command {
 				output := map[string]any{
 					"status":    status,
 					"succeeded": results.Succeeded,
+					"batchSize": input.BatchSize,
+					"batches":   batches,
 				}
 				if len(results.Failed) > 0 {
 					output["failed"] = results.Failed
 				}
 				return app.PrintJSON(cmd, output)
+			}
+
+			if batches > 1 {
+				fmt.Printf("Processed %d emails in %d batches (batch size %d)\n", len(ids), batches, input.BatchSize)
 			}
 
 			// Handle text output
@@ -341,6 +454,7 @@ func newEmailBulkMarkReadCmd(app *App) *cobra.Command {
 
 	cmd.Flags().BoolVar(&unread, "unread", false, "Mark as unread instead of read")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
+	addBulkInputFlags(cmd, &input)
 
 	return cmd
 }

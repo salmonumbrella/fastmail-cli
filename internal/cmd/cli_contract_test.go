@@ -70,6 +70,10 @@ func TestExecute_JSONSuccess_DryRunCommandsAreSingleJSONDocument(t *testing.T) {
 			args: []string{"--output=json", "email", "bulk-move", "--dry-run", "--to", "Inbox", "id1"},
 		},
 		{
+			name: "bulk-archive",
+			args: []string{"--output=json", "email", "bulk-archive", "--dry-run", "id1"},
+		},
+		{
 			name: "bulk-mark-read",
 			args: []string{"--output=json", "email", "bulk-mark-read", "--dry-run", "id1"},
 		},
