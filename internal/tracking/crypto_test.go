@@ -1,6 +1,7 @@
 package tracking
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -68,5 +69,43 @@ func TestGenerateKeyLength(t *testing.T) {
 	// Base64 encoded 32 bytes = 44 characters (with padding) or 43 without
 	if len(key) < 40 {
 		t.Errorf("key too short: %d chars", len(key))
+	}
+}
+
+func TestValidateKeyVersion(t *testing.T) {
+	tests := []struct {
+		version int
+		wantErr bool
+	}{
+		{1, false},
+		{255, false},
+		{256, true},
+		{0, true},
+		{-1, true},
+	}
+	for _, tt := range tests {
+		err := ValidateKeyVersion(tt.version)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("ValidateKeyVersion(%d) err=%v, wantErr=%v", tt.version, err, tt.wantErr)
+		}
+	}
+}
+
+func TestDecrypt_PreservesVersionError(t *testing.T) {
+	key1, _ := GenerateKey()
+	key2, _ := GenerateKey()
+	payload := &PixelPayload{Recipient: "test@example.com", SentAt: 1234567890}
+
+	blob, err := EncryptWithVersion(payload, key1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Decrypt(blob, key2)
+	if err == nil {
+		t.Fatal("expected error decrypting with wrong key")
+	}
+	if !strings.Contains(err.Error(), "decrypt") {
+		t.Fatalf("error should mention decrypt failure: %v", err)
 	}
 }

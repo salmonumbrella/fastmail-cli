@@ -22,6 +22,17 @@ var errCiphertextTooShort = errors.New("ciphertext too short")
 
 const defaultTrackingKeyVersion = byte(1)
 
+// MaxKeyVersion is the maximum allowed key version (single byte in wire format).
+const MaxKeyVersion = 255
+
+// ValidateKeyVersion checks that a version number fits in the wire format.
+func ValidateKeyVersion(version int) error {
+	if version < 1 || version > MaxKeyVersion {
+		return fmt.Errorf("key version %d out of range [1, %d]", version, MaxKeyVersion)
+	}
+	return nil
+}
+
 // Encrypt encrypts a PixelPayload into a URL-safe base64 blob using AES-GCM
 func Encrypt(payload *PixelPayload, keyBase64 string) (string, error) {
 	return EncryptWithVersion(payload, keyBase64, defaultTrackingKeyVersion)
@@ -73,7 +84,14 @@ func Decrypt(blob string, keyBase64 string) (*PixelPayload, error) {
 		return decrypted, nil
 	}
 
-	return decryptLegacy(blob, keyBase64)
+	// Try legacy format (no version byte) as fallback
+	legacyResult, legacyErr := decryptLegacy(blob, keyBase64)
+	if legacyErr == nil {
+		return legacyResult, nil
+	}
+
+	// Both failed — return the versioned error (more informative)
+	return nil, fmt.Errorf("decrypt failed (versioned: %w; legacy: %v)", err, legacyErr)
 }
 
 func DecryptWithVersion(blob string, keyBase64 string, keyVersion byte) (*PixelPayload, error) {

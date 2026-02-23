@@ -50,6 +50,10 @@ func newEmailTrackRotateCmd(app *App) *cobra.Command {
 			}
 			nextVersion++
 
+			if vErr := tracking.ValidateKeyVersion(nextVersion); vErr != nil {
+				return fmt.Errorf("cannot rotate: %w", vErr)
+			}
+
 			newKey, err := tracking.GenerateKey()
 			if err != nil {
 				return fmt.Errorf("generate tracking key: %w", err)
