@@ -221,7 +221,8 @@ async function handleAdminOpens(request: Request, env: Env, url: URL): Promise<R
 
   const recipient = url.searchParams.get('recipient');
   const since = url.searchParams.get('since');
-  const limit = parseInt(url.searchParams.get('limit') || '100', 10);
+  const rawLimit = parseInt(url.searchParams.get('limit') || '100', 10);
+  const limit = Number.isNaN(rawLimit) || rawLimit <= 0 ? 100 : Math.min(rawLimit, 1000);
 
   let query = 'SELECT * FROM opens WHERE 1=1';
   const params: any[] = [];
