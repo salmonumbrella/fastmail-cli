@@ -107,6 +107,7 @@ brews:
       system "#{bin}/fastmail", "--help"
 
 release:
+  mode: replace
   github:
     owner: salmonumbrella
     name: fastmail-cli
