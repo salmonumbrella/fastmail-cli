@@ -155,6 +155,12 @@ async function isDuplicateOpen(env: Env, trackingId: string, ip: string): Promis
 }
 
 async function handleQuery(request: Request, env: Env, path: string): Promise<Response> {
+  // Require admin auth — the blob contains encrypted PII (recipient, timestamps)
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || authHeader !== `Bearer ${env.ADMIN_KEY}`) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
   const blob = path.slice(3); // Remove '/q/'
 
   const trackingKeys = getTrackingKeysFromEnv(env);
